@@ -53,9 +53,31 @@ static void write_instantiations(struct netlist_manager *m, FILE *fd, struct edi
 static void write_connections(struct netlist_manager *m, FILE *fd, struct edif_param *param)
 {
 	struct netlist_instance *inst;
+	int output;
+	struct netlist_net *net;
 
 	inst = m->head;
 	while(inst != NULL) {
+		for(output=0;output<inst->p->outputs;output++) {
+			net = inst->outputs[output];
+			if(net != NULL) {
+				fprintf(fd, "(net N%08x\n", net->uid);
+				fprintf(fd, "(joined\n");
+				/* output */
+				fprintf(fd, "(portRef %s (instanceRef I%08x))\n",
+					inst->p->output_names[output],
+					inst->uid);
+				/* inputs */
+				while(net != NULL) {
+					fprintf(fd, "(portRef %s (instanceRef I%08x))\n",
+						net->dest->p->input_names[net->input],
+						net->dest->uid);
+					net = net->next;
+				}
+				fprintf(fd, ")\n");
+				fprintf(fd, ")\n");
+			}
+		}
 		inst = inst->next;
 	}
 }
