@@ -1,7 +1,14 @@
 #ifndef __NETLIST_NET_H
 #define __NETLIST_NET_H
 
+enum {
+	NETLIST_PRIMITIVE_INTERNAL,
+	NETLIST_PRIMITIVE_PORT_OUT,
+	NETLIST_PRIMITIVE_PORT_IN
+};
+
 struct netlist_primitive {
+	int type;			/* < internal or I/O port */
 	char *name;			/* < name of the primitive */
 	char **attribute_names;		/* < names of attributes */
 	char **default_attributes;	/* < default values of attributes */

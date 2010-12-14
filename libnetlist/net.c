@@ -34,10 +34,14 @@ struct netlist_instance *netlist_instantiate(unsigned int uid, struct netlist_pr
 		assert(new->attributes[i] != NULL);
 	}
 	new->attributes[n_attr] = NULL;
-	
-	new->outputs = malloc(p->outputs*sizeof(void *));
-	assert(new->outputs != NULL);
-	memset(new->outputs, 0, p->outputs*sizeof(void *));
+
+	if(p->outputs > 0) {
+		new->outputs = malloc(p->outputs*sizeof(void *));
+		assert(new->outputs != NULL);
+		memset(new->outputs, 0, p->outputs*sizeof(void *));
+	} else
+		new->outputs = NULL;
+
 	new->next = NULL;
 
 	return new;
