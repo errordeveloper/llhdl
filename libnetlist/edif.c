@@ -7,9 +7,78 @@
 #include <netlist/manager.h>
 #include <netlist/edif.h>
 
+struct primitive_list {
+	struct netlist_primitive *p;
+	struct primitive_list *next;
+};
+
+static int in_primitive_list(struct primitive_list *l, struct netlist_primitive *p)
+{
+	while(l != NULL) {
+		if(l->p == p)
+			return 1;
+		l = l->next;
+	}
+	return 0;
+}
+
+static struct primitive_list *build_primitive_list(struct netlist_instance *inst)
+{
+	struct primitive_list *l;
+	struct primitive_list *new;
+
+	l = NULL;
+	while(inst != NULL) {
+		if(!in_primitive_list(l, inst->p)) {
+			new = malloc(sizeof(struct primitive_list));
+			assert(new != NULL);
+			new->p = inst->p;
+			new->next = l;
+			l = new;
+		}
+		inst = inst->next;
+	}
+	return l;
+}
+
+static void free_primitive_list(struct primitive_list *l)
+{
+	struct primitive_list *l2;
+
+	while(l != NULL) {
+		l2 = l->next;
+		free(l);
+		l = l2;
+	}
+}
+
 static void write_imports(struct netlist_manager *m, FILE *fd, struct edif_param *param)
 {
-	/* TODO */
+	struct primitive_list *l;
+	struct primitive_list *lit;
+	int i;
+
+	l = build_primitive_list(m->head);
+	lit = l;
+	while(lit != NULL) {
+		fprintf(fd, "(cell %s\n"
+			"(cellType GENERIC)\n",
+			lit->p->name);
+		fprintf(fd, "(view view_1\n"
+			"(viewType NETLIST)\n");
+		fprintf(fd, "(interface\n");
+		for(i=0;i<lit->p->inputs;i++)
+			fprintf(fd, "(port %s (direction INPUT))\n",
+				lit->p->input_names[i]);
+		for(i=0;i<lit->p->outputs;i++)
+			fprintf(fd, "(port %s (direction OUTPUT))\n",
+				lit->p->output_names[i]);
+		fprintf(fd, ")\n");
+		fprintf(fd, ")\n");
+		fprintf(fd, ")\n");
+		lit = lit->next;
+	}
+	free_primitive_list(l);
 }
 
 static void write_io(struct netlist_manager *m, FILE *fd, struct edif_param *param)
@@ -91,7 +160,13 @@ void netlist_m_edif_fd(struct netlist_manager *m, FILE *fd, struct edif_param *p
 		"(edifLevel 0)\n"
 		"(keywordMap (keywordLevel 0))\n", param->design_name);
 
+	fprintf(fd,
+		"(external %s\n"
+		"(edifLevel 0)\n"
+		"(technology (numberDefinition))\n",
+		param->cell_library);
 	write_imports(m, fd, param);
+	fprintf(fd, ")\n");
 
 	/* start design library, top level cell, and netlist view */
 	fprintf(fd,
