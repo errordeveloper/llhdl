@@ -5,14 +5,15 @@
 #include <netlist/edif.h>
 #include <netlist/io.h>
 
-static char *attribute_names[] = {"MYATTR", NULL};
-static char *attrs[] = {"42", NULL};
-static char *input_names[] = {"I", NULL};
-static char *output_names[] = {"O", NULL};
+static char *attribute_names[] = {"MYATTR"};
+static char *attrs[] = {"42"};
+static char *input_names[] = {"I"};
+static char *output_names[] = {"O"};
 
 static struct netlist_primitive test = {
 	.type = NETLIST_PRIMITIVE_INTERNAL,
 	.name = "TEST",
+	.attribute_count = 1,
 	.attribute_names = attribute_names,
 	.default_attributes = attrs,
 	.inputs = 1,

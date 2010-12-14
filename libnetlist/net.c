@@ -4,21 +4,10 @@
 
 #include <netlist/net.h>
 
-static int count_attributes(struct netlist_primitive *p)
-{
-	int i;
-
-	i = 0;
-	while(p->default_attributes[i] != NULL)
-		i++;
-	return i;
-}
-
 struct netlist_instance *netlist_instantiate(unsigned int uid, struct netlist_primitive *p)
 {
 	struct netlist_instance *new;
 	int i;
-	int n_attr;
 
 	new = malloc(sizeof(struct netlist_instance));
 	assert(new != NULL);
@@ -26,14 +15,15 @@ struct netlist_instance *netlist_instantiate(unsigned int uid, struct netlist_pr
 	new->uid = uid;
 	new->p = p;
 
-	n_attr = count_attributes(p);
-	new->attributes = malloc((n_attr+1)*sizeof(void *));
-	assert(new->attributes);
-	for(i=0;i<n_attr;i++) {
-		new->attributes[i] = strdup(p->default_attributes[i]);
-		assert(new->attributes[i] != NULL);
-	}
-	new->attributes[n_attr] = NULL;
+	if(p->attribute_count > 0) {
+		new->attributes = malloc(p->attribute_count*sizeof(void *));
+		assert(new->attributes);
+		for(i=0;i<p->attribute_count;i++) {
+			new->attributes[i] = strdup(p->default_attributes[i]);
+			assert(new->attributes[i] != NULL);
+		}
+	} else
+		new->attributes = NULL;
 
 	if(p->outputs > 0) {
 		new->outputs = malloc(p->outputs*sizeof(void *));
@@ -52,11 +42,8 @@ void netlist_free_instance(struct netlist_instance *inst)
 	int i;
 	struct netlist_net *n1, *n2;
 
-	i = 0;
-	while(inst->attributes[i] != NULL) {
+	for(i=0;i<inst->p->attribute_count;i++)
 		free(inst->attributes[i]);
-		i++;
-	}
 	free(inst->attributes);
 
 	for(i=0;i<inst->p->outputs;i++) {

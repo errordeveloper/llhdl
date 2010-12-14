@@ -120,8 +120,7 @@ static void write_instantiations(struct netlist_manager *m, FILE *fd, struct edi
 				param->cell_library);
 			if(param->flavor == EDIF_FLAVOR_XILINX)
 				fprintf(fd, "(property XSTLIB (boolean (true)) (owner \"Xilinx\"))\n");
-			i = 0;
-			while(inst->attributes[i] != NULL) {
+			for(i=0;i<inst->p->attribute_count;i++) {
 				if(param->flavor == EDIF_FLAVOR_XILINX)
 					fprintf(fd, "(property %s (string \"%s\") (owner \"Xilinx\"))",
 						inst->p->attribute_names[i],
@@ -130,7 +129,6 @@ static void write_instantiations(struct netlist_manager *m, FILE *fd, struct edi
 					fprintf(fd, "(property %s (string \"%s\"))",
 						inst->p->attribute_names[i],
 						inst->attributes[i]);
-				i++;
 			}
 			fprintf(fd, ")\n");
 		}

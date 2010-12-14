@@ -10,6 +10,7 @@ enum {
 struct netlist_primitive {
 	int type;			/* < internal or I/O port */
 	char *name;			/* < name of the primitive */
+	int attribute_count;		/* < number of attributes */
 	char **attribute_names;		/* < names of attributes */
 	char **default_attributes;	/* < default values of attributes */
 	int inputs;			/* < number of inputs */
