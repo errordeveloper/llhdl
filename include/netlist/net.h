@@ -3,9 +3,12 @@
 
 struct netlist_primitive {
 	char *name;			/* < name of the primitive */
+	char **attribute_names;		/* < names of attributes */
 	char **default_attributes;	/* < default values of attributes */
 	int inputs;			/* < number of inputs */
+	char **input_names;		/* < names of the inputs */
 	int outputs;			/* < number of outputs */
+	char **output_names;		/* < names of the outputs */
 };
 
 struct netlist_instance;

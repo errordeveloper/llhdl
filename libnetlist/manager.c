@@ -31,13 +31,20 @@ void netlist_m_free(struct netlist_manager *m)
 
 struct netlist_instance *netlist_m_instantiate(struct netlist_manager *m, struct netlist_primitive *p)
 {
-	return netlist_instantiate(m->next_uid++, p);
+	struct netlist_instance *inst;
+
+	inst = netlist_instantiate(m->next_uid++, p);
+	inst->next = m->head;
+	m->head = inst;
+	return inst;
 }
 
 void netlist_m_free_instance(struct netlist_manager *m, struct netlist_instance *inst, int break_connections)
 {
 	netlist_free_instance(inst);
-	/* TODO: break_connections */
+	if(break_connections) {
+		/* TODO: break_connections */
+	}
 }
 
 void netlist_m_connect(struct netlist_manager *m, struct netlist_instance *src, int output, struct netlist_instance *dest, int input)

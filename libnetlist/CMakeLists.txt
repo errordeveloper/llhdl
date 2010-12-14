@@ -1,1 +1,1 @@
- add_library(netlist net.c manager.c)
+ add_library(netlist net.c manager.c edif.c)
