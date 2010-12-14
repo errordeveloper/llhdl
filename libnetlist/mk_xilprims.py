@@ -6,6 +6,18 @@ Primitive = collections.namedtuple('Primitive', 'name attributes inputs outputs'
 
 primitives = [
 	Primitive(
+		name = "IBUF",
+		attributes = [],
+		inputs = [(1, "I")],
+		outputs = [(1, "O")]
+	),
+	Primitive(
+		name = "OBUF",
+		attributes = [],
+		inputs = [(1, "I")],
+		outputs = [(1, "O")]
+	),
+	Primitive(
 		name = "FDE",
 		attributes = [],
 		inputs = [(1, "C"), (1, "CE"), (1, "D")],
