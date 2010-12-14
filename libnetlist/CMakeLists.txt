@@ -1,0 +1,1 @@
+ add_library(netlist net.c manager.c)
