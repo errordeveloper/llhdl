@@ -34,6 +34,9 @@ def io_count(l):
 	return c
 
 def generate_c():
+	print "#include <stdlib.h>"
+	print "#include <netlist/net.h>"
+	print "#include <netlist/xilprims.h>"
 	for p in primitives:
 		print "\n/* %s */" % p.name
 		if p.attributes:

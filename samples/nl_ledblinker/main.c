@@ -4,6 +4,7 @@
 #include <netlist/manager.h>
 #include <netlist/edif.h>
 #include <netlist/io.h>
+#include <netlist/xilprims.h>
 
 static char *attribute_names[] = {"MYATTR"};
 static char *attrs[] = {"42"};

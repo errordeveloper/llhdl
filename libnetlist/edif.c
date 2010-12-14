@@ -132,7 +132,7 @@ static void write_instantiations(struct netlist_manager *m, FILE *fd, struct edi
 			}
 			fprintf(fd, ")\n");
 		}
-			
+
 		inst = inst->next;
 	}
 }
