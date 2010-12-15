@@ -16,4 +16,4 @@ set_property(
 	${PROJECT_SOURCE_DIR}/include/netlist/xilprims.h
 )
 
-add_library(netlist net.c manager.c edif.c io.c xilprims.c)
+add_library(netlist net.c manager.c edif.c io.c xilprims.c symbol.c)
