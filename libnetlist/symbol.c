@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include <netlist/symbol.h>
 
@@ -102,6 +103,20 @@ void netlist_sym_to_file(struct netlist_sym_store *store, const char *filename)
 
 void netlist_sym_from_fd(struct netlist_sym_store *store, FILE *fd)
 {
+	unsigned int uid;
+	char type;
+	char *name;
+	int n;
+	
+	while(1) {
+		n = fscanf(fd, "%x %c %as", &uid, &type, &name);
+		if(n != 3) {
+			assert(feof(fd));
+			break;
+		}
+		netlist_sym_add(store, uid, type, name);
+		free(name);
+	}
 }
 
 void netlist_sym_from_file(struct netlist_sym_store *store, const char *filename)
