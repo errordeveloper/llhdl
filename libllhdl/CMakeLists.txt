@@ -1,1 +1,1 @@
-add_library(llhdl structure.c)
+add_library(llhdl structure.c exchange.c)
