@@ -11,6 +11,7 @@ project(LLHDL)
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
 add_subdirectory(libnetlist)
+add_subdirectory(libllhdl)
 
 add_subdirectory(samples)
 add_subdirectory(llhdl-resolveucf)
