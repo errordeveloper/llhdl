@@ -28,6 +28,33 @@ static int str_to_cmd(const char *str)
 	return CMD_INVALID;
 }
 
+enum {
+	OP_INVALID,
+	OP_MUX,
+	OP_FD,
+	OP_SLICE,
+	OP_CAT,
+	OP_SIGN,
+	OP_UNSIGN,
+	OP_ADD,
+	OP_SUB,
+	OP_MUL
+};
+
+static int str_to_op(const char *str)
+{
+	if(strcmp(str, "mux") == 0) return OP_MUX;
+	if(strcmp(str, "fd") == 0) return OP_FD;
+	if(strcmp(str, "slice") == 0) return OP_SLICE;
+	if(strcmp(str, "cat") == 0) return OP_CAT;
+	if(strcmp(str, "sign") == 0) return OP_SIGN;
+	if(strcmp(str, "unsign") == 0) return OP_UNSIGN;
+	if(strcmp(str, "add") == 0) return OP_ADD;
+	if(strcmp(str, "sub") == 0) return OP_SUB;
+	if(strcmp(str, "mul") == 0) return OP_MUL;
+	return OP_INVALID;
+}
+
 static const char delims[] = " \t\n";
 
 static void parse_module(struct llhdl_module *m, char **saveptr)
@@ -92,6 +119,135 @@ static void parse_signal(struct llhdl_module *m, char **saveptr, int type)
 	llhdl_create_signal(m, type, sign, token, vectorsize);
 }
 
+static struct llhdl_node *parse_expr(struct llhdl_module *m, char **saveptr);
+
+static struct llhdl_node *parse_operator(struct llhdl_module *m, char *op, char **saveptr)
+{
+	int opc;
+	struct llhdl_node *p1, *p2, *p3;
+
+	opc = str_to_op(op);
+	switch(opc) {
+		case OP_MUX:
+			p1 = parse_expr(m, saveptr);
+			p2 = parse_expr(m, saveptr);
+			p3 = parse_expr(m, saveptr);
+			return llhdl_create_mux(p1, p2, p3);
+		case OP_FD:
+			p1 = parse_expr(m, saveptr);
+			p2 = parse_expr(m, saveptr);
+			return llhdl_create_fd(p1, p2);
+		case OP_SLICE: {
+			struct llhdl_node *n;
+			
+			p1 = parse_expr(m, saveptr);
+			p2 = parse_expr(m, saveptr);
+			p3 = parse_expr(m, saveptr);
+			
+			if((p2->type != LLHDL_NODE_INTEGER) || (p3->type != LLHDL_NODE_INTEGER)) {
+				fprintf(stderr, "Start and end of slice must be constant\n");
+				exit(EXIT_FAILURE);
+				return NULL;
+			}
+			n = llhdl_create_slice(p1, p2->p.integer.value, p3->p.integer.value);
+			llhdl_free_node(p2);
+			llhdl_free_node(p3);
+			return n;
+		}
+		case OP_CAT:
+			p1 = parse_expr(m, saveptr);
+			p2 = parse_expr(m, saveptr);
+			return llhdl_create_cat(p1, p2);
+		case OP_SIGN:
+			p1 = parse_expr(m, saveptr);
+			return llhdl_create_sign(p1, 1);
+		case OP_UNSIGN:
+			p1 = parse_expr(m, saveptr);
+			return llhdl_create_sign(p1, 0);
+		case OP_ADD:
+			p1 = parse_expr(m, saveptr);
+			p2 = parse_expr(m, saveptr);
+			return llhdl_create_arith(LLHDL_ARITH_ADD, p1, p2);
+		case OP_SUB:
+			p1 = parse_expr(m, saveptr);
+			p2 = parse_expr(m, saveptr);
+			return llhdl_create_arith(LLHDL_ARITH_SUB, p1, p2);
+		case OP_MUL:
+			p1 = parse_expr(m, saveptr);
+			p2 = parse_expr(m, saveptr);
+			return llhdl_create_arith(LLHDL_ARITH_MUL, p1, p2);
+		default:
+			fprintf(stderr, "Unknown operator: %s\n", op);
+			exit(EXIT_FAILURE);
+			return NULL;
+	}
+}
+
+static struct llhdl_node *parse_expr(struct llhdl_module *m, char **saveptr)
+{
+	char *token;
+	char type;
+
+	token = strtok_r(NULL, delims, saveptr);
+	if(token == NULL) {
+		fprintf(stderr, "Unexpected end of expression\n");
+		exit(EXIT_FAILURE);
+	}
+	type = *token;
+	switch(type) {
+		case '0':
+			return llhdl_create_boolean(0);
+		case '1':
+			return llhdl_create_boolean(1);
+		case '#':
+			token++;
+			return parse_operator(m, token, saveptr);
+		case '\'': {
+			char *c;
+			long long int v;
+			token++;
+			v = strtoll(token, &c, 0);
+			if(*c != 0) {
+				fprintf(stderr, "Invalid integer value: %s\n", token);
+				exit(EXIT_FAILURE);
+			}
+			return llhdl_create_integer(v);
+		}
+		default: {
+			struct llhdl_node *n;
+
+			n = llhdl_find_signal(m, token);
+			if(n == NULL) {
+				fprintf(stderr, "Reference to unknown signal: %s\n", token);
+				exit(EXIT_FAILURE);
+			}
+			return n;
+		}
+	}
+}
+
+static void parse_assign(struct llhdl_module *m, char **saveptr)
+{
+	char *token;
+	struct llhdl_node *target_signal;
+
+	token = strtok_r(NULL, delims, saveptr);
+	if(token == NULL) {
+		fprintf(stderr, "Unexpected end of line\n");
+		exit(EXIT_FAILURE);
+	}
+	target_signal = llhdl_find_signal(m, token);
+	if(target_signal == NULL) {
+		fprintf(stderr, "Assignment to unknown signal %s\n", token);
+		exit(EXIT_FAILURE);
+	}
+	if(target_signal->p.signal.source != NULL) {
+		fprintf(stderr, "Conflicting assignments on signal %s\n", token);
+		exit(EXIT_FAILURE);
+	}
+	target_signal->p.signal.source = parse_expr(m, saveptr);
+}
+
 static void parse_line(struct llhdl_module *m, char *line)
 {
 	char *saveptr;
@@ -116,7 +272,7 @@ static void parse_line(struct llhdl_module *m, char *line)
 			parse_signal(m, &saveptr, LLHDL_SIGNAL_INTERNAL);
 			break;
 		case CMD_ASSIGN:
-			/* TODO */
+			parse_assign(m, &saveptr);
 			return;
 		default:
 			fprintf(stderr, "Invalid command: %s\n", str);
@@ -181,9 +337,82 @@ static void write_signals(struct llhdl_module *m, FILE *fd)
 	}
 }
 
+static void write_expr(FILE *fd, struct llhdl_node *n)
+{
+	fprintf(fd, " ");
+	switch(n->type) {
+		case LLHDL_NODE_BOOLEAN:
+			fprintf(fd, "%d", n->p.boolean.value);
+			break;
+		case LLHDL_NODE_SIGNAL:
+			fprintf(fd, "%s", n->p.signal.name);
+			break;
+		case LLHDL_NODE_MUX:
+			fprintf(fd, "#mux");
+			write_expr(fd, n->p.mux.sel);
+			write_expr(fd, n->p.mux.negative);
+			write_expr(fd, n->p.mux.positive);
+			break;
+		case LLHDL_NODE_FD:
+			fprintf(fd, "#fd");
+			write_expr(fd, n->p.fd.clock);
+			write_expr(fd, n->p.fd.data);
+			break;
+		case LLHDL_NODE_INTEGER:
+			fprintf(fd, "'%lld", n->p.integer.value);
+			break;
+		case LLHDL_NODE_SLICE:
+			fprintf(fd, "#slice");
+			write_expr(fd, n->p.slice.source);
+			fprintf(fd, " %d %d", n->p.slice.start, n->p.slice.end);
+			break;
+		case LLHDL_NODE_CAT:
+			fprintf(fd, "#cat");
+			write_expr(fd, n->p.cat.msb);
+			write_expr(fd, n->p.cat.lsb);
+			break;
+		case LLHDL_NODE_SIGN:
+			if(n->p.sign.sign)
+				fprintf(fd, "#sign");
+			else
+				fprintf(fd, "#unsign");
+			write_expr(fd, n->p.sign.source);
+			break;
+		case LLHDL_NODE_ARITH:
+			switch(n->p.arith.op) {
+				case LLHDL_ARITH_ADD:
+					fprintf(fd, "#add");
+					break;
+				case LLHDL_ARITH_SUB:
+					fprintf(fd, "#sub");
+					break;
+				case LLHDL_ARITH_MUL:
+					fprintf(fd, "#mul");
+					break;
+				default:
+					assert(0);
+					break;
+			}
+			write_expr(fd, n->p.arith.a);
+			write_expr(fd, n->p.arith.b);
+			break;
+	}
+}
+
 static void write_assignments(struct llhdl_module *m, FILE *fd)
 {
-	/* TODO */
+	struct llhdl_node *n;
+
+	n = m->head;
+	while(n != NULL) {
+		assert(n->type == LLHDL_NODE_SIGNAL);
+		if(n->p.signal.source != NULL) {
+			fprintf(fd, "assign %s", n->p.signal.name);
+			write_expr(fd, n->p.signal.source);
+			fprintf(fd, "\n");
+		}
+		n = n->p.signal.next;
+	}
 }
 
 void llhdl_write_fd(struct llhdl_module *m, FILE *fd)

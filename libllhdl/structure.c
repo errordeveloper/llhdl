@@ -26,7 +26,7 @@ void llhdl_free_module(struct llhdl_module *m)
 	while(n1 != NULL) {
 		assert(n1->type == LLHDL_NODE_SIGNAL);
 		n2 = n1->p.signal.next;
-		llhdl_free_node(n1);
+		llhdl_free_signal(n1);
 		n1 = n2;
 	}
 }
@@ -153,12 +153,11 @@ void llhdl_free_node(struct llhdl_node *n)
 {
 	if(n == NULL)
 		return;
-
+	if(n->type == LLHDL_NODE_SIGNAL)
+		return;
+	
 	switch(n->type) {
 		case LLHDL_NODE_BOOLEAN:
-			break;
-		case LLHDL_NODE_SIGNAL:
-			llhdl_free_node(n->p.signal.source);
 			break;
 		case LLHDL_NODE_MUX:
 			llhdl_free_node(n->p.mux.sel);
@@ -190,4 +189,25 @@ void llhdl_free_node(struct llhdl_node *n)
 			break;
 	}
 	free(n);
+}
+
+void llhdl_free_signal(struct llhdl_node *n)
+{
+	assert(n->type == LLHDL_NODE_SIGNAL);
+	llhdl_free_node(n->p.signal.source);
+	free(n);
+}
+
+struct llhdl_node *llhdl_find_signal(struct llhdl_module *m, const char *name)
+{
+	struct llhdl_node *n;
+
+	n = m->head;
+	while(n != NULL) {
+		assert(n->type == LLHDL_NODE_SIGNAL);
+		if(strcmp(n->p.signal.name, name) == 0)
+			return n;
+		n = n->p.signal.next;
+	}
+	return NULL;
 }

@@ -57,7 +57,7 @@ struct llhdl_node_sign {
 enum {
 	LLHDL_ARITH_ADD,
 	LLHDL_ARITH_SUB,
-	LLHDL_ARITH_MUL,
+	LLHDL_ARITH_MUL
 };
 
 struct llhdl_node_arith {
@@ -111,6 +111,9 @@ struct llhdl_node *llhdl_create_slice(struct llhdl_node *source, int start, int 
 struct llhdl_node *llhdl_create_cat(struct llhdl_node *msb, struct llhdl_node *lsb);
 struct llhdl_node *llhdl_create_sign(struct llhdl_node *source, int sign);
 struct llhdl_node *llhdl_create_arith(int op, struct llhdl_node *a, struct llhdl_node *b);
-void llhdl_free_node(struct llhdl_node *n);
+void llhdl_free_node(struct llhdl_node *n); /* < does not free signals */
+void llhdl_free_signal(struct llhdl_node *n);
+
+struct llhdl_node *llhdl_find_signal(struct llhdl_module *m, const char *name);
 
 #endif /* __LLHDL_STRUCTURE_H */
