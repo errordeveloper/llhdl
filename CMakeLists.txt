@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 2.8.2)
-project(LLHDL)
 
 # a little deGNU'ing is always good
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
+
+project(LLHDL)
 
 set(CMAKE_C_FLAGS "-O2 -Wall -D_GNU_SOURCE")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")

@@ -71,7 +71,3 @@ void netlist_connect(unsigned int uid, struct netlist_instance *src, int output,
 	n->next = src->outputs[output];
 	src->outputs[output] = n;
 }
-
-void netlist_disconnect(struct netlist_instance *src, int output, struct netlist_instance *dest, int input)
-{
-}

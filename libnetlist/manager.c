@@ -39,12 +39,9 @@ struct netlist_instance *netlist_m_instantiate(struct netlist_manager *m, struct
 	return inst;
 }
 
-void netlist_m_free_instance(struct netlist_manager *m, struct netlist_instance *inst, int break_connections)
+void netlist_m_free_instance(struct netlist_manager *m, struct netlist_instance *inst)
 {
 	netlist_free_instance(inst);
-	if(break_connections) {
-		/* TODO: break_connections */
-	}
 }
 
 unsigned int netlist_m_connect(struct netlist_manager *m, struct netlist_instance *src, int output, struct netlist_instance *dest, int input)
@@ -54,9 +51,4 @@ unsigned int netlist_m_connect(struct netlist_manager *m, struct netlist_instanc
 	uid = m->next_uid++;
 	netlist_connect(uid, src, output, dest, input);
 	return uid;
-}
-
-void netlist_m_disconnect(struct netlist_manager *m, struct netlist_instance *src, int output, struct netlist_instance *dest, int input)
-{
-	netlist_disconnect(src, output, dest, input);
 }
