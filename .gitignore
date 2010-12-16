@@ -1,0 +1,3 @@
+include/netlist/xilprims.h
+libnetlist/xilprims.c
+build
