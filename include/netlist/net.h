@@ -41,4 +41,6 @@ struct netlist_instance *netlist_instantiate(unsigned int uid, struct netlist_pr
 void netlist_free_instance(struct netlist_instance *inst);
 void netlist_connect(unsigned int uid, struct netlist_instance *src, int output, struct netlist_instance *dest, int input);
 
+void netlist_set_attribute(struct netlist_instance *inst, const char *attr, const char *value);
+
 #endif /* __NETLIST_NET_H */

@@ -24,9 +24,51 @@ primitives = [
 		outputs = [(1, "Q")]
 	),
 	Primitive(
+		name = "VCC",
+		attributes = [],
+		inputs = [],
+		outputs = [(1, "O")]
+	),
+	Primitive(
+		name = "GND",
+		attributes = [],
+		inputs = [],
+		outputs = [(1, "O")]
+	),
+	Primitive(
+		name = "LUT1",
+		attributes = [("INIT", "0")],
+		inputs = [(1, "I0")],
+		outputs = [(1, "O")]
+	),
+	Primitive(
 		name = "LUT2",
 		attributes = [("INIT", "0")],
 		inputs = [(1, "I0"), (1, "I1")],
+		outputs = [(1, "O")]
+	),
+	Primitive(
+		name = "LUT3",
+		attributes = [("INIT", "00")],
+		inputs = [(1, "I0"), (1, "I1"), (1, "I2")],
+		outputs = [(1, "O")]
+	),
+	Primitive(
+		name = "LUT4",
+		attributes = [("INIT", "0000")],
+		inputs = [(1, "I0"), (1, "I1"), (1, "I2"), (1, "I3")],
+		outputs = [(1, "O")]
+	),
+	Primitive(
+		name = "LUT5",
+		attributes = [("INIT", "00000000")],
+		inputs = [(1, "I0"), (1, "I1"), (1, "I2"), (1, "I3"), (1, "I4")],
+		outputs = [(1, "O")]
+	),
+	Primitive(
+		name = "LUT6",
+		attributes = [("INIT", "0000000000000000")],
+		inputs = [(1, "I0"), (1, "I1"), (1, "I2"), (1, "I3"), (1, "I4"), (1, "I5")],
 		outputs = [(1, "O")]
 	),
 ]
@@ -85,9 +127,15 @@ def generate_c():
 			print "\t\t.attribute_names = NULL,"
 			print "\t\t.default_attributes = NULL,"
 		print "\t\t.inputs = %d," % io_count(p.inputs)
-		print "\t\t.input_names = %s_inputs," % p.name
+		if p.inputs:
+			print "\t\t.input_names = %s_inputs," % p.name
+		else:
+			print "\t\t.input_names = NULL,"
 		print "\t\t.outputs = %d," % io_count(p.outputs)
-		print "\t\t.output_names = %s_outputs" % p.name
+		if p.outputs:
+			print "\t\t.output_names = %s_outputs" % p.name
+		else:
+			print "\t\t.output_names = NULL"
 		print "\t},"
 	print "};"
 

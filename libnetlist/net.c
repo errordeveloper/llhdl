@@ -71,3 +71,27 @@ void netlist_connect(unsigned int uid, struct netlist_instance *src, int output,
 	n->next = src->outputs[output];
 	src->outputs[output] = n;
 }
+
+static int find_attribute(struct netlist_instance *inst, const char *attr)
+{
+	int i;
+
+	for(i=0;i<inst->p->attribute_count;i++)
+		if(strcmp(inst->p->attribute_names[i], attr) == 0) return i;
+	return -1;
+}
+
+void netlist_set_attribute(struct netlist_instance *inst, const char *attr, const char *value)
+{
+	int a;
+
+	a = find_attribute(inst, attr);
+	assert(a != -1);
+	
+	free(inst->attributes[a]);
+	if(value == NULL)
+		inst->attributes[a] = strdup(inst->p->default_attributes[a]);
+	else
+		inst->attributes[a] = strdup(value);
+	assert(inst->attributes[a] != NULL);
+}
