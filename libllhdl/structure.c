@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <llhdl/structure.h>
@@ -22,11 +23,21 @@ void llhdl_free_module(struct llhdl_module *m)
 	
 	free(m->name);
 
+	/* We must traverse the list twice,
+	 * otherwise invalid signal references may appear in
+	 * llhdl_free_node().
+	 */
+	n1 = m->head;
+	while(n1 != NULL) {
+		assert(n1->type == LLHDL_NODE_SIGNAL);
+		llhdl_free_node(n1->p.signal.source);
+		n1 = n1->p.signal.next;
+	}
 	n1 = m->head;
 	while(n1 != NULL) {
 		assert(n1->type == LLHDL_NODE_SIGNAL);
 		n2 = n1->p.signal.next;
-		llhdl_free_signal(n1);
+		free(n1);
 		n1 = n2;
 	}
 }
@@ -73,7 +84,7 @@ struct llhdl_node *llhdl_create_signal(struct llhdl_module *m, int type, int sig
 	n->p.signal.source = NULL;
 	n->p.signal.vectorsize = vectorsize;
 	n->p.signal.next = m->head;
-	memcpy(n->p.signal.name, name, len);
+	memcpy(n->p.signal.name, name, len+1);
 	m->head = n;
 	return n;
 }
