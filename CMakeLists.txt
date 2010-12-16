@@ -6,7 +6,7 @@ set(CMAKE_CXX_COMPILER clang++)
 
 project(LLHDL)
 
-set(CMAKE_C_FLAGS "-O2 -Wall -D_GNU_SOURCE")
+set(CMAKE_C_FLAGS "-O2 -Wall -D_GNU_SOURCE -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
 
 include_directories("${PROJECT_SOURCE_DIR}/include")

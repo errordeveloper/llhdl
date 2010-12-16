@@ -93,7 +93,7 @@ struct llhdl_node *llhdl_create_fd(struct llhdl_node *clock, struct llhdl_node *
 {
 	struct llhdl_node *n;
 
-	n = alloc_base_node(sizeof(struct llhdl_node_mux), LLHDL_NODE_FD);
+	n = alloc_base_node(sizeof(struct llhdl_node_fd), LLHDL_NODE_FD);
 	n->p.fd.clock = clock;
 	n->p.fd.data = data;
 	return n;
@@ -143,7 +143,7 @@ struct llhdl_node *llhdl_create_arith(int op, struct llhdl_node *a, struct llhdl
 {
 	struct llhdl_node *n;
 
-	n = alloc_base_node(sizeof(struct llhdl_node_cat), LLHDL_NODE_ARITH);
+	n = alloc_base_node(sizeof(struct llhdl_node_arith), LLHDL_NODE_ARITH);
 	n->p.arith.a = a;
 	n->p.arith.b = b;
 	return n;
@@ -155,7 +155,7 @@ void llhdl_free_node(struct llhdl_node *n)
 		return;
 	if(n->type == LLHDL_NODE_SIGNAL)
 		return;
-	
+
 	switch(n->type) {
 		case LLHDL_NODE_BOOLEAN:
 			break;
