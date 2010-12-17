@@ -81,6 +81,11 @@ void netlist_add_branch(struct netlist_net *net, struct netlist_instance *inst, 
 {
 	struct netlist_branch *branch;
 
+	if(output)
+		assert(pin_index < inst->p->outputs);
+	else
+		assert(pin_index < inst->p->inputs);
+	
 	branch = malloc(sizeof(struct netlist_branch));
 	assert(branch != NULL);
 	branch->inst = inst;
