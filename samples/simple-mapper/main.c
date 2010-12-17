@@ -275,6 +275,7 @@ int main(int argc, char *argv[])
 	obj.module = llhdl_parse_file(argv[1]);
 	edif_param.design_name = obj.module->name;
 	obj.netlist = netlist_m_new();
+	obj.symbols = netlist_sym_newstore();
 
 	obj.vcc = netlist_m_instantiate(obj.netlist, &netlist_xilprims[NETLIST_XIL_VCC]);
 	obj.gnd = netlist_m_instantiate(obj.netlist, &netlist_xilprims[NETLIST_XIL_GND]);
@@ -329,6 +330,7 @@ int main(int argc, char *argv[])
 	netlist_m_edif_fd(obj.netlist, stdout, &edif_param);
 
 	/* Clean up */
+	netlist_sym_freestore(obj.symbols);
 	netlist_m_free(obj.netlist);
 	llhdl_free_module(obj.module);
 

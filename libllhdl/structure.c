@@ -40,6 +40,7 @@ void llhdl_free_module(struct llhdl_module *m)
 		free(n1);
 		n1 = n2;
 	}
+	free(m);
 }
 
 void llhdl_set_module_name(struct llhdl_module *m, const char *name)
