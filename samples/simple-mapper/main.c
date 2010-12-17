@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
 	struct netlist_net *net;
 	struct netlist_sym *sym;
 	
-	if(argc != 2) { // FIXME
+	if(argc != 4) {
 		fprintf(stderr, "Usage: simple-mapper <input.lhd> <output.edf> <output.sym>\n");
 		return 1;
 	}
@@ -322,13 +322,19 @@ int main(int argc, char *argv[])
 	n = obj.module->head;
 	while(n != NULL) {
 		assert(n->type == LLHDL_NODE_SIGNAL);
-		if(n->p.signal.source != NULL)
-			map_expr(&obj, n->p.signal.source);
+		if(n->p.signal.source != NULL) {
+			struct netlist_instance *inst;
+
+			inst = map_expr(&obj, n->p.signal.source);
+			net = resolve_signal(&obj, n);
+			netlist_add_branch(net, inst, 1, 0);
+		}
 		n = n->p.signal.next;
 	}
 
 	/* Write output files */
-	netlist_m_edif_fd(obj.netlist, stdout, &edif_param);
+	netlist_m_edif_file(obj.netlist, argv[2], &edif_param);
+	netlist_sym_to_file(obj.symbols, argv[3]);
 
 	/* Clean up */
 	netlist_sym_freestore(obj.symbols);
