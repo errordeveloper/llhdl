@@ -5,7 +5,7 @@
 #include <netlist/net.h>
 #include <netlist/io.h>
 
-struct netlist_primitive *netlist_create_io_primitive(int type, const char *name)
+static struct netlist_primitive *create_io_primitive(int type, const char *name)
 {
 	struct netlist_primitive *p;
 	char **name_list;
@@ -45,7 +45,7 @@ struct netlist_primitive *netlist_create_io_primitive(int type, const char *name
 	return p;
 }
 
-void netlist_free_io_primitive(struct netlist_primitive *p)
+static void free_io_primitive(struct netlist_primitive *p)
 {
 	if(p->inputs > 0) {
 		free(*p->input_names);
@@ -56,4 +56,41 @@ void netlist_free_io_primitive(struct netlist_primitive *p)
 		free(p->output_names);
 	}
 	free(p);
+}
+
+struct netlist_iop_manager *netlist_create_iop_manager()
+{
+	struct netlist_iop_manager *m;
+
+	m = malloc(sizeof(struct netlist_iop_manager));
+	assert(m != NULL);
+	m->head = NULL;
+	return m;
+}
+
+void netlist_free_iop_manager(struct netlist_iop_manager *m)
+{
+	struct netlist_iop_element *e1, *e2;
+
+	e1 = m->head;
+	while(e1 != NULL) {
+		free_io_primitive(e1->p);
+		e2 = e1->next;
+		free(e1);
+		e1 = e2;
+	}
+	free(m);
+}
+
+struct netlist_primitive *netlist_create_io_primitive(struct netlist_iop_manager *m, int type, const char *name)
+{
+	struct netlist_primitive *p;
+	struct netlist_iop_element *e;
+
+	p = create_io_primitive(type, name);
+	e = malloc(sizeof(struct netlist_iop_element));
+	e->p = p;
+	e->next = m->head;
+	m->head = e;
+	return p;
 }

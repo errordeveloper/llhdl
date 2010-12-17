@@ -168,6 +168,7 @@ static char *iosuffix(const char *base)
 
 struct sm_objects {
 	struct llhdl_module *module;
+	struct netlist_iop_manager *netlist_iop;
 	struct netlist_manager *netlist;
 	struct netlist_sym_store *symbols;
 	struct netlist_instance *vcc;
@@ -274,6 +275,7 @@ int main(int argc, char *argv[])
 	/* Initialize */
 	obj.module = llhdl_parse_file(argv[1]);
 	edif_param.design_name = obj.module->name;
+	obj.netlist_iop = netlist_create_iop_manager();
 	obj.netlist = netlist_m_new();
 	obj.symbols = netlist_sym_newstore();
 
@@ -308,8 +310,7 @@ int main(int argc, char *argv[])
 			netlist_add_branch(ionet, iobuf, !isout, isout ? NETLIST_XIL_OBUF_I : NETLIST_XIL_IBUF_O);
 
 			/* Create I/O port and connect to buffer */
-			ioprim = netlist_create_io_primitive(isout ? NETLIST_PRIMITIVE_PORT_OUT : NETLIST_PRIMITIVE_PORT_IN, n->p.signal.name);
-			// FIXME: ioprim is not freed
+			ioprim = netlist_create_io_primitive(obj.netlist_iop, isout ? NETLIST_PRIMITIVE_PORT_OUT : NETLIST_PRIMITIVE_PORT_IN, n->p.signal.name);
 			ioport = netlist_m_instantiate(obj.netlist, ioprim);
 			netlist_add_branch(net, ioport, !isout, 0);
 			netlist_add_branch(net, iobuf, isout, isout ? NETLIST_XIL_OBUF_O : NETLIST_XIL_IBUF_I);
@@ -332,6 +333,7 @@ int main(int argc, char *argv[])
 	/* Clean up */
 	netlist_sym_freestore(obj.symbols);
 	netlist_m_free(obj.netlist);
+	netlist_free_iop_manager(obj.netlist_iop);
 	llhdl_free_module(obj.module);
 
 	return 0;

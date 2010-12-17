@@ -17,6 +17,7 @@ static struct edif_param edif_param = {
 
 int main(int argc, char *argv[])
 {
+	struct netlist_iop_manager *m_iop;
 	struct netlist_primitive *my_in, *my_out;
 	struct netlist_manager *m;
 	struct netlist_instance *ibuf, *obuf;
@@ -24,8 +25,10 @@ int main(int argc, char *argv[])
 	struct netlist_sym_store *symbols;
 	struct netlist_net *net_btn1, *net_internal, *net_led1;
 
-	my_in = netlist_create_io_primitive(NETLIST_PRIMITIVE_PORT_IN, "btn1");
-	my_out = netlist_create_io_primitive(NETLIST_PRIMITIVE_PORT_OUT, "led1");
+	m_iop = netlist_create_iop_manager();
+	
+	my_in = netlist_create_io_primitive(m_iop, NETLIST_PRIMITIVE_PORT_IN, "btn1");
+	my_out = netlist_create_io_primitive(m_iop, NETLIST_PRIMITIVE_PORT_OUT, "led1");
 	
 	m = netlist_m_new();
 	symbols = netlist_sym_newstore();
@@ -60,8 +63,7 @@ int main(int argc, char *argv[])
 	netlist_m_free(m);
 	netlist_sym_freestore(symbols);
 
-	netlist_free_io_primitive(my_in);
-	netlist_free_io_primitive(my_out);
+	netlist_free_iop_manager(m_iop);
 
 	return 0;
 }
