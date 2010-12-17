@@ -63,11 +63,17 @@ int main(int argc, char *argv[])
 	}
 
 	fd_in = fopen(argv[1], "r");
-	assert(fd_in != NULL);
+	if(fd_in == NULL) {
+		perror("Error opening input file");
+		exit(EXIT_FAILURE);
+	}
 	sym = netlist_sym_newstore();
 	netlist_sym_from_file(sym, argv[2]);
 	fd_out = fopen(argv[3], "w");
-	assert(fd_out != NULL);
+	if(fd_out == NULL) {
+		perror("Error opening output file");
+		exit(EXIT_FAILURE);
+	}
 
 	line = NULL;
 	linesize = 0;

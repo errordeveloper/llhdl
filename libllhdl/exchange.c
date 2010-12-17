@@ -429,7 +429,10 @@ struct llhdl_module *llhdl_parse_file(const char *filename)
 	struct llhdl_module *m;
 
 	fd = fopen(filename, "r");
-	assert(fd != NULL);
+	if(fd == NULL) {
+		perror("llhdl_parse_file");
+		exit(EXIT_FAILURE);
+	}
 	m = llhdl_parse_fd(fd);
 	fclose(fd);
 	return m;
@@ -441,7 +444,10 @@ void llhdl_write_file(struct llhdl_module *m, const char *filename)
 	int r;
 
 	fd = fopen(filename, "w");
-	assert(fd != NULL);
+	if(fd == NULL) {
+		perror("llhdl_write_file");
+		exit(EXIT_FAILURE);
+	}
 	llhdl_write_fd(m, fd);
 	r = fclose(fd);
 	assert(r == 0);

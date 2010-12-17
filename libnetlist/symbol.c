@@ -89,7 +89,10 @@ void netlist_sym_to_file(struct netlist_sym_store *store, const char *filename)
 	int r;
 
 	fd = fopen(filename, "w");
-	assert(fd != NULL);
+	if(fd == NULL) {
+		perror("netlist_sym_to_file");
+		exit(EXIT_FAILURE);
+	}
 	netlist_sym_to_fd(store, fd);
 	r = fclose(fd);
 	assert(r == 0);
@@ -118,7 +121,10 @@ void netlist_sym_from_file(struct netlist_sym_store *store, const char *filename
 	FILE *fd;
 	
 	fd = fopen(filename, "r");
-	assert(fd != NULL);
+	if(fd == NULL) {
+		perror("netlist_sym_from_file");
+		exit(EXIT_FAILURE);
+	}
 	netlist_sym_from_fd(store, fd);
 	fclose(fd);
 }

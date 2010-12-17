@@ -246,7 +246,10 @@ void netlist_m_edif_file(struct netlist_manager *m, const char *filename, struct
 	int r;
 
 	fd = fopen(filename, "w");
-	assert(fd != NULL);
+	if(fd == NULL) {
+		perror("netlist_m_edif_file");
+		exit(EXIT_FAILURE);
+	}
 	netlist_m_edif_fd(m, fd, param);
 	r = fclose(fd);
 	assert(r == 0);
