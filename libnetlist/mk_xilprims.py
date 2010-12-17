@@ -27,13 +27,13 @@ primitives = [
 		name = "VCC",
 		attributes = [],
 		inputs = [],
-		outputs = [(1, "O")]
+		outputs = [(1, "P")]
 	),
 	Primitive(
 		name = "GND",
 		attributes = [],
 		inputs = [],
-		outputs = [(1, "O")]
+		outputs = [(1, "G")]
 	),
 	Primitive(
 		name = "LUT1",
