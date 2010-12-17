@@ -10,7 +10,7 @@ static char *process_line(struct netlist_sym_store *sym, char *line)
 {
 	char *c;
 	char *c2;
-	unsigned int uid;
+	struct netlist_sym *s;
 	int r;
 	char *replacement;
 	
@@ -33,12 +33,13 @@ static char *process_line(struct netlist_sym_store *sym, char *line)
 	}
 	*c2 = 0;
 	c2++;
-	
-	if(!netlist_sym_lookup(sym, c, 'N', &uid)) {
+
+	s = netlist_sym_lookup(sym, c, 'N');
+	if(s == NULL) {
 		fprintf(stderr, "Symbol not found: %s\n", c);
 		return NULL;
 	}
-	r = asprintf(&replacement, "NET N%08x%s", uid, c2);
+	r = asprintf(&replacement, "NET N%08x%s", s->uid, c2);
 	assert(r != -1);
 
 	return replacement;

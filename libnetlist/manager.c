@@ -12,19 +12,27 @@ struct netlist_manager *netlist_m_new()
 	m = malloc(sizeof(struct netlist_manager));
 	assert(m != NULL);
 	m->next_uid = 0;
-	m->head = NULL;
+	m->ihead = NULL;
+	m->nhead = NULL;
 	return m;
 }
 
 void netlist_m_free(struct netlist_manager *m)
 {
 	struct netlist_instance *i1, *i2;
+	struct netlist_net *n1, *n2;
 
-	i1 = m->head;
+	i1 = m->ihead;
 	while(i1 != NULL) {
 		i2 = i1->next;
 		netlist_free_instance(i1);
 		i1 = i2;
+	}
+	n1 = m->nhead;
+	while(n1 != NULL) {
+		n2 = n1->next;
+		netlist_free_net(n1);
+		n1 = n2;
 	}
 	free(m);
 }
@@ -34,21 +42,17 @@ struct netlist_instance *netlist_m_instantiate(struct netlist_manager *m, struct
 	struct netlist_instance *inst;
 
 	inst = netlist_instantiate(m->next_uid++, p);
-	inst->next = m->head;
-	m->head = inst;
+	inst->next = m->ihead;
+	m->ihead = inst;
 	return inst;
 }
 
-void netlist_m_free_instance(struct netlist_manager *m, struct netlist_instance *inst)
+struct netlist_net *netlist_m_create_net(struct netlist_manager *m)
 {
-	netlist_free_instance(inst);
-}
+	struct netlist_net *net;
 
-unsigned int netlist_m_connect(struct netlist_manager *m, struct netlist_instance *src, int output, struct netlist_instance *dest, int input)
-{
-	unsigned int uid;
-
-	uid = m->next_uid++;
-	netlist_connect(uid, src, output, dest, input);
-	return uid;
+	net = netlist_create_net(m->next_uid++);
+	net->next = m->nhead;
+	m->nhead = net;
+	return net;
 }

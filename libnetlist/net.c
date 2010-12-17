@@ -25,13 +25,6 @@ struct netlist_instance *netlist_instantiate(unsigned int uid, struct netlist_pr
 	} else
 		new->attributes = NULL;
 
-	if(p->outputs > 0) {
-		new->outputs = malloc(p->outputs*sizeof(void *));
-		assert(new->outputs != NULL);
-		memset(new->outputs, 0, p->outputs*sizeof(void *));
-	} else
-		new->outputs = NULL;
-
 	new->next = NULL;
 
 	return new;
@@ -40,36 +33,12 @@ struct netlist_instance *netlist_instantiate(unsigned int uid, struct netlist_pr
 void netlist_free_instance(struct netlist_instance *inst)
 {
 	int i;
-	struct netlist_net *n1, *n2;
 
 	for(i=0;i<inst->p->attribute_count;i++)
 		free(inst->attributes[i]);
 	free(inst->attributes);
-
-	for(i=0;i<inst->p->outputs;i++) {
-		n1 = inst->outputs[i];
-		while(n1 != NULL) {
-			n2 = n1->next;
-			free(n1);
-			n1 = n2;
-		}
-	}
-	free(inst->outputs);
 	
 	free(inst);
-}
-
-void netlist_connect(unsigned int uid, struct netlist_instance *src, int output, struct netlist_instance *dest, int input)
-{
-	struct netlist_net *n;
-
-	n = malloc(sizeof(struct netlist_net));
-	assert(n != NULL);
-	n->uid = uid;
-	n->dest = dest;
-	n->input = input;
-	n->next = src->outputs[output];
-	src->outputs[output] = n;
 }
 
 static int find_attribute(struct netlist_instance *inst, const char *attr)
@@ -94,4 +63,42 @@ void netlist_set_attribute(struct netlist_instance *inst, const char *attr, cons
 	else
 		inst->attributes[a] = strdup(value);
 	assert(inst->attributes[a] != NULL);
+}
+
+struct netlist_net *netlist_create_net(unsigned int uid)
+{
+	struct netlist_net *net;
+
+	net = malloc(sizeof(struct netlist_net));
+	assert(net != NULL);
+	net->uid = uid;
+	net->head = NULL;
+	net->next = NULL;
+	return net;
+}
+
+void netlist_add_branch(struct netlist_net *net, struct netlist_instance *inst, int output, int pin_index)
+{
+	struct netlist_branch *branch;
+
+	branch = malloc(sizeof(struct netlist_branch));
+	assert(branch != NULL);
+	branch->inst = inst;
+	branch->output = output;
+	branch->pin_index = pin_index;
+	branch->next = net->head;
+	net->head = branch;
+}
+
+void netlist_free_net(struct netlist_net *net)
+{
+	struct netlist_branch *b1, *b2;
+
+	b1 = net->head;
+	while(b1 != NULL) {
+		b2 = b1->next;
+		free(b1);
+		b1 = b2;
+	}
+	free(net);
 }

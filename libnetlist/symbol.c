@@ -29,7 +29,7 @@ void netlist_sym_freestore(struct netlist_sym_store *store)
 	free(store);
 }
 
-void netlist_sym_add(struct netlist_sym_store *store, unsigned int uid, char type, const char *name)
+struct netlist_sym *netlist_sym_add(struct netlist_sym_store *store, unsigned int uid, char type, const char *name)
 {
 	int len;
 	struct netlist_sym *s;
@@ -38,41 +38,35 @@ void netlist_sym_add(struct netlist_sym_store *store, unsigned int uid, char typ
 	s = malloc(sizeof(struct netlist_sym)+len+1);
 	assert(s != NULL);
 	s->next = store->head;
+	s->user = NULL;
 	s->uid = uid;
 	s->type = type;
-	memcpy(s->name, name, len);
+	memcpy(s->name, name, len+1);
 	store->head = s;
+	return s;
 }
 
-int netlist_sym_lookup(struct netlist_sym_store *store, const char *name, char type, unsigned int *uid)
+struct netlist_sym *netlist_sym_lookup(struct netlist_sym_store *store, const char *name, char type)
 {
 	struct netlist_sym *it;
 
 	it = store->head;
 	while(it != NULL) {
-		if(((type == 0x00) || (it->type == type)) && (strcmp(name, it->name) == 0)) {
-			if(uid != NULL)
-				*uid = it->uid;
-			return 1;
-		}
+		if(((type == 0x00) || (it->type == type)) && (strcmp(name, it->name) == 0))
+			return it;
 		it = it->next;
 	}
-	return 0;
+	return NULL;
 }
 
-int netlist_sym_revlookup(struct netlist_sym_store *store, unsigned int uid, char **name, char *type)
+struct netlist_sym *netlist_sym_revlookup(struct netlist_sym_store *store, unsigned int uid)
 {
 	struct netlist_sym *it;
 
 	it = store->head;
 	while(it != NULL) {
-		if(it->uid == uid) {
-			if(name != NULL)
-				*name = it->name;
-			if(type != NULL)
-				*type = it->type;
-			return 1;
-		}
+		if(it->uid == uid)
+			return it;
 		it = it->next;
 	}
 	return 0;

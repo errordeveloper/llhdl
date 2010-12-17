@@ -148,8 +148,8 @@ static struct netlist_instance *map_expr(struct netlist_manager *m, struct llhdl
 		pos_map = map_expr(m, n->p.mux.positive);
 		mux2 = create_mux2(m);
 		// TODO: netlist_m_connect(m, "n->p.mux.sel", 0, mux2, 0);
-		netlist_m_connect(m, neg_map, 0, mux2, 1);
-		netlist_m_connect(m, pos_map, 0, mux2, 2);
+		//netlist_m_connect(m, neg_map, 0, mux2, 1);
+		//netlist_m_connect(m, pos_map, 0, mux2, 2);
 		return mux2;
 	} else {
 		lut_t l;

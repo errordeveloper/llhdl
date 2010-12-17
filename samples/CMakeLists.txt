@@ -1,3 +1,3 @@
-add_subdirectory(netlist-ledblinker)
+add_subdirectory(netlist-leddriver)
 add_subdirectory(llhdl-reprint)
 add_subdirectory(simple-mapper)

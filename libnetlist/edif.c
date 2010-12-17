@@ -109,7 +109,7 @@ static void write_instantiations(struct netlist_manager *m, FILE *fd, struct edi
 	struct netlist_instance *inst;
 	int i;
 
-	inst = m->head;
+	inst = m->ihead;
 	while(inst != NULL) {
 		if(inst->p->type == NETLIST_PRIMITIVE_INTERNAL) {
 			fprintf(fd,
@@ -139,41 +139,33 @@ static void write_instantiations(struct netlist_manager *m, FILE *fd, struct edi
 
 static void write_connections(struct netlist_manager *m, FILE *fd, struct edif_param *param)
 {
-	struct netlist_instance *inst;
-	int output;
 	struct netlist_net *net;
+	struct netlist_branch *branch;
+	char *portname;
 
-	inst = m->head;
-	while(inst != NULL) {
-		for(output=0;output<inst->p->outputs;output++) {
-			net = inst->outputs[output];
-			if(net != NULL) {
-				fprintf(fd, "(net N%08x\n", net->uid);
-				fprintf(fd, "(joined\n");
-				/* output */
-				if(inst->p->type == NETLIST_PRIMITIVE_INTERNAL)
-					fprintf(fd, "(portRef %s (instanceRef I%08x))\n",
-						inst->p->output_names[output],
-						inst->uid);
+	net = m->nhead;
+	while(net != NULL) {
+		branch = net->head;
+		if(branch != NULL) {
+			fprintf(fd, "(net N%08x\n", net->uid);
+			fprintf(fd, "(joined\n");
+			while(branch != NULL) {
+				if(branch->output)
+					portname = branch->inst->p->output_names[branch->pin_index];
 				else
-					fprintf(fd, "(portRef %s)\n",
-						inst->p->output_names[output]);
-				/* inputs */
-				while(net != NULL) {
-					if(net->dest->p->type == NETLIST_PRIMITIVE_INTERNAL)
-						fprintf(fd, "(portRef %s (instanceRef I%08x))\n",
-							net->dest->p->input_names[net->input],
-							net->dest->uid);
-					else
-						fprintf(fd, "(portRef %s)\n",
-							net->dest->p->input_names[net->input]);
-					net = net->next;
-				}
-				fprintf(fd, ")\n");
-				fprintf(fd, ")\n");
+					portname = branch->inst->p->input_names[branch->pin_index];
+				if(branch->inst->p->type == NETLIST_PRIMITIVE_INTERNAL)
+					fprintf(fd, "(portRef %s (instanceRef I%08x))\n",
+						portname,
+						branch->inst->uid);
+				else
+					fprintf(fd, "(portRef %s)\n", portname);
+				branch = branch->next;
 			}
+			fprintf(fd, ")\n");
+			fprintf(fd, ")\n");
 		}
-		inst = inst->next;
+		net = net->next;
 	}
 }
 
@@ -188,7 +180,7 @@ void netlist_m_edif_fd(struct netlist_manager *m, FILE *fd, struct edif_param *p
 		"(edifLevel 0)\n"
 		"(keywordMap (keywordLevel 0))\n", param->design_name);
 
-	prim_list = build_primitive_list(m->head);
+	prim_list = build_primitive_list(m->ihead);
 
 	/* write imports */
 	fprintf(fd,

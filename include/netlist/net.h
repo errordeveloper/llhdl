@@ -19,28 +19,33 @@ struct netlist_primitive {
 	char **output_names;		/* < names of the outputs */
 };
 
-struct netlist_instance;
-
-struct netlist_net {
-	unsigned int uid;		/* < unique identifier */
-	struct netlist_instance *dest;	/* < destination instance of this net */
-	int input;			/* < input port of the destination instance */
-	struct netlist_net *next;	/* < next net on this output port */
-};
-
 struct netlist_instance {
 	unsigned int uid;		/* < unique identifier */
 	struct netlist_primitive *p;	/* < what primitive we are an instance of */
 	char **attributes;		/* < attributes of this instance */
-	struct netlist_net **outputs;	/* < table of nets connected to outputs */
 	struct netlist_instance *next;	/* < next instance in this manager */
 };
 
-/* low level functions, typically not used directly */
+struct netlist_branch {
+	struct netlist_instance *inst;	/* < target instance */
+	int output;			/* < 1 if targeting an output */
+	int pin_index;			/* < index of input/output */
+	struct netlist_branch *next;	/* < next branch on this net */
+};
+
+struct netlist_net {
+	unsigned int uid;		/* < unique identifier */
+	struct netlist_branch *head;	/* < first branch on this net */
+	struct netlist_net *next;	/* < next net in this manager */
+};
+
+/* low level functions, often not used directly */
 struct netlist_instance *netlist_instantiate(unsigned int uid, struct netlist_primitive *p);
 void netlist_free_instance(struct netlist_instance *inst);
-void netlist_connect(unsigned int uid, struct netlist_instance *src, int output, struct netlist_instance *dest, int input);
-
 void netlist_set_attribute(struct netlist_instance *inst, const char *attr, const char *value);
+
+struct netlist_net *netlist_create_net(unsigned int uid);
+void netlist_add_branch(struct netlist_net *net, struct netlist_instance *inst, int output, int pin_index);
+void netlist_free_net(struct netlist_net *net);
 
 #endif /* __NETLIST_NET_H */
