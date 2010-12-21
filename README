@@ -1,0 +1,27 @@
+LLHDL - Low Level Hardware Description Language
+An experimental logic synthesis infrastructure for FPGAs.
+
+(C) Copyright 2010 Sebastien Bourdeauducq.
+Released under GNU GPL version 3.
+
+Build requirements:
+ * clang
+ * cmake
+ * re2c
+ * lemon
+
+Build/installation instructions:
+ $ mkdir build
+ $ cd build
+ $ cmake ..
+ $ make
+ # make install
+
+Then you can try the example designs in the "designs" folder. Xilinx ISE is
+still needed for the place and route and bitstream encoding phases.
+
+NOTE: This is highly experimental work in progress. As of today, many Verilog
+features do not work, the netlist is not optimized and the internal APIs not
+guaranteed to be stable.
+
+Homepage: http://www.milkymist.org/llhdl
