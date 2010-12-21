@@ -113,22 +113,74 @@ static void enumerate_process(struct enumeration *e, struct verilog_process *p)
 	}
 }
 
+static int evaluate_node(struct verilog_node *n, struct enumeration *e)
+{
+	int values[3];
+	int i;
+	int arity;
+
+	if((n->type != VERILOG_NODE_CONSTANT) && (n->type != VERILOG_NODE_SIGNAL)) {
+		arity = verilog_get_node_arity(n->type);
+		for(i=0;i<arity;i++)
+			values[i] = evaluate_node(n->branches[i], e);
+	}
+
+	switch(n->type) {
+		case VERILOG_NODE_CONSTANT:
+			return ((struct verilog_constant *)n->branches[0])->value;
+		case VERILOG_NODE_SIGNAL: {
+			struct enumerated_signal *s;
+			s = find_signal_in_enumeration(e, n->branches[0]);
+			return s->value;
+		}
+		case VERILOG_NODE_EQL: return values[0] == values[1];
+		case VERILOG_NODE_NEQ: return values[0] != values[1];
+		case VERILOG_NODE_OR: return values[0] | values[1];
+		case VERILOG_NODE_AND: return values[0] & values[1];
+		case VERILOG_NODE_TILDE: return ~values[0];
+		case VERILOG_NODE_XOR: return values[0] ^ values[1];
+		case VERILOG_NODE_ALT: return values[0] ? values[1] : values[2];
+		default:
+			assert(0);
+			return 0;
+	}
+}
+
+struct llhdl_node *make_llhdl_node(struct verilog_node *n, struct enumeration *e, struct enumerated_signal *s)
+{
+	if(s == NULL) {
+		int v;
+		
+		v = evaluate_node(n, e);
+		return llhdl_create_boolean(v);
+	} else {
+		struct llhdl_node *sel, *neg, *pos;
+
+		sel = s->orig->user;
+		s->value = 0;
+		neg = make_llhdl_node(n, e, s->next);
+		s->value = 1;
+		pos = make_llhdl_node(n, e, s->next);
+		return llhdl_create_mux(sel, neg, pos);
+	}
+}
+
 static void transfer_process(struct llhdl_module *lm, struct verilog_process *p)
 {
 	struct enumeration *e;
-	struct enumerated_signal *s;
+	struct verilog_assignment *a;
+	struct llhdl_node *target;
 
 	e = new_enumeration();
 	enumerate_process(e, p);
 
-	printf("Process:");
-	s = e->head;
-	while(s != NULL) {
-		printf(" %s", s->orig->name);
-		s = s->next;
+	a = p->head;
+	while(a != NULL) {
+		target = a->target->user;
+		target->p.signal.source = make_llhdl_node(a->source, e, e->head);
+		a = a->next;
 	}
-	printf("\n");
-	
+
 	free_enumeration(e);
 }
 

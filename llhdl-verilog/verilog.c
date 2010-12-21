@@ -118,6 +118,7 @@ void verilog_free_signal(struct verilog_module *m, struct verilog_signal *s)
 int verilog_get_node_arity(int type)
 {
 	switch(type) {
+		case VERILOG_NODE_CONSTANT: return 1;
 		case VERILOG_NODE_SIGNAL: return 1;
 		case VERILOG_NODE_EQL: return 2;
 		case VERILOG_NODE_NEQ: return 2;
