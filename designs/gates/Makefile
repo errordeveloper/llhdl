@@ -23,6 +23,11 @@ ise/gates-routed.ncd: ise/gates.ncd
 ise/gates.bit: ise/gates-routed.ncd
 	cd ise && bitgen -w gates-routed.ncd gates.bit
 
+load: ise/gates.bit
+	jtag load.rc
+
+.PHONY: clean load
+
 clean:
 	rm -f gates.edf gates.lhd gates.sym gates-resolved.ucf
 	rm -rf ise/*
