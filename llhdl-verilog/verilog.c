@@ -93,6 +93,7 @@ struct verilog_signal *verilog_new_update_signal(struct verilog_module *m, int t
 	s->vectorsize = vectorsize;
 	s->sign = sign;
 	s->next = m->shead;
+	s->user = NULL;
 	memcpy(s->name, name, len);
 	m->shead = s;
 	return s;

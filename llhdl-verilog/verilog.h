@@ -18,6 +18,7 @@ struct verilog_signal {
 	int vectorsize;
 	int sign;
 	struct verilog_signal *next;
+	void *user;
 	char name[];
 };
 
