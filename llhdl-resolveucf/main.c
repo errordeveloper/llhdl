@@ -27,8 +27,10 @@ static char *process_line(struct netlist_sym_store *sym, char *line)
 	c2 = c;
 	while(!isblank(*c2) && (*c2 != '"'))
 		c2++;
-	if(*c2 == '"')
+	if(*c2 == '"') {
+		*c2 = 0;
 		c2++;
+	}
 	if(*(c2+1) == 0) {
 		fprintf(stderr, "Malformed line: %s\n", line);
 		return NULL;
@@ -41,7 +43,7 @@ static char *process_line(struct netlist_sym_store *sym, char *line)
 		fprintf(stderr, "Symbol not found: %s\n", c);
 		return NULL;
 	}
-	r = asprintf(&replacement, "NET N%08x%s ", s->uid, c2);
+	r = asprintf(&replacement, "NET N%08x %s", s->uid, c2);
 	assert(r != -1);
 
 	return replacement;
