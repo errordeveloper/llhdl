@@ -125,11 +125,12 @@ process(P) ::= TOK_ASSIGN assignment(A) TOK_SEMICOLON. {
 
 /* FIXME: this accepts wire/reg declarations in the module header */
 
-io ::= io TOK_COMMA newsignal.
+io(I) ::= io TOK_COMMA newsignal(S). { I = S; }
+io(I) ::= newsignal(S). { I = S; }
 io ::= .
 
-body ::= body newsignal.
-body ::= body process.
+body(B) ::= body newsignal(N). { B = N; }
+body(B) ::= body process(P). { B = P; }
 body ::= .
 
 module ::= TOK_MODULE TOK_ID(N) TOK_LPAREN io TOK_RPAREN TOK_SEMICOLON body TOK_ENDMODULE. {

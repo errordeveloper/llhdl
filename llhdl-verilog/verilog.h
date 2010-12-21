@@ -59,6 +59,7 @@ struct verilog_module {
 	struct verilog_process *phead;
 };
 
+/* structure manipulation */
 struct verilog_constant *verilog_new_constant(int vectorsize, int sign, long long int value);
 struct verilog_constant *verilog_new_constant_str(char *str);
 
@@ -80,7 +81,15 @@ struct verilog_module *verilog_new_module();
 void verilog_set_module_name(struct verilog_module *m, const char *name);
 void verilog_free_module(struct verilog_module *m);
 
+/* parsing */
 struct verilog_module *verilog_parse_fd(FILE *fd);
 struct verilog_module *verilog_parse_file(const char *filename);
+
+/* dump (for debugging) */
+void verilog_dump_signal(struct verilog_signal *s);
+void verilog_dump_node(struct verilog_node *n);
+void verilog_dump_assignment(struct verilog_assignment *a);
+void verilog_dump_process(struct verilog_process *p);
+void verilog_dump_module(struct verilog_module *m);
 
 #endif /* __VERILOG_H */

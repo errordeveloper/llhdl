@@ -11,11 +11,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	m = verilog_parse_file(argv[1]);
-	if(m == NULL) {
-		fprintf(stderr, "Parse failed\n");
-		return 2;
-	}
-	printf("Module name: %s\n", m->name);
+	verilog_dump_module(m);
 	verilog_free_module(m);
 
 	return 0;

@@ -276,6 +276,7 @@ void verilog_free_module(struct verilog_module *m)
 extern void *ParseAlloc(void *(*mallocProc)(size_t));
 extern void ParseFree(void *p, void (*freeProc)(void *));
 extern void Parse(void *yyp, int yymajor, void *yyminor, struct verilog_module *outm);
+extern void ParseTrace(FILE *TraceFILE, char *zTracePrompt);
 
 struct verilog_module *verilog_parse_fd(FILE *fd)
 {
@@ -285,6 +286,7 @@ struct verilog_module *verilog_parse_fd(FILE *fd)
 	char *stoken;
 	struct verilog_module *m;
 
+	//ParseTrace(stdout, "parser: ");
 	s = scanner_new(fd);
 	m = verilog_new_module();
 	p = ParseAlloc(malloc);
@@ -315,4 +317,136 @@ struct verilog_module *verilog_parse_file(const char *filename)
 	m = verilog_parse_fd(fd);
 	fclose(fd);
 	return m;
+}
+
+void verilog_dump_signal(struct verilog_signal *s)
+{
+	switch(s->type) {
+		case VERILOG_SIGNAL_REGWIRE:
+			printf("  signal ");
+			break;
+		case VERILOG_SIGNAL_OUTPUT:
+			printf("  output ");
+			break;
+		case VERILOG_SIGNAL_INPUT:
+			printf("  input ");
+			break;
+	}
+	if(s->sign)
+		printf("signed ");
+	if(s->vectorsize > 1)
+		printf("<%d> ", s->vectorsize);
+	printf("%s\n", s->name);
+}
+
+void verilog_dump_node(struct verilog_node *n)
+{
+	switch(n->type) {
+		case VERILOG_NODE_CONSTANT: {
+			struct verilog_constant *c;
+			c = n->branches[0];
+			printf("(%lld<%d%s>)", c->value, c->vectorsize, c->sign ? "s":"");
+			break;
+		}
+		case VERILOG_NODE_SIGNAL: {
+			struct verilog_signal *s;
+			s = n->branches[0];
+			printf("(%s)", s->name);
+			break;
+		}
+		case VERILOG_NODE_EQL:
+			printf("(");
+			verilog_dump_node(n->branches[0]);
+			printf("==");
+			verilog_dump_node(n->branches[1]);
+			printf(")");
+			break;
+		case VERILOG_NODE_NEQ:
+			printf("(");
+			verilog_dump_node(n->branches[0]);
+			printf("!=");
+			verilog_dump_node(n->branches[1]);
+			printf(")");
+			break;
+		case VERILOG_NODE_OR:
+			printf("(");
+			verilog_dump_node(n->branches[0]);
+			printf("|");
+			verilog_dump_node(n->branches[1]);
+			printf(")");
+			break;
+		case VERILOG_NODE_AND:
+			printf("(");
+			verilog_dump_node(n->branches[0]);
+			printf("&");
+			verilog_dump_node(n->branches[1]);
+			printf(")");
+			break;
+		case VERILOG_NODE_TILDE:
+			printf("(~");
+			verilog_dump_node(n->branches[0]);
+			printf(")");
+			break;
+		case VERILOG_NODE_XOR:
+			printf("(");
+			verilog_dump_node(n->branches[0]);
+			printf("&");
+			verilog_dump_node(n->branches[1]);
+			printf(")");
+			break;
+		case VERILOG_NODE_ALT:
+			printf("(");
+			verilog_dump_node(n->branches[0]);
+			printf("?");
+			verilog_dump_node(n->branches[1]);
+			printf(":");
+			verilog_dump_node(n->branches[2]);
+			printf(")");
+			break;
+	}
+}
+
+void verilog_dump_assignment(struct verilog_assignment *a)
+{
+	printf("    %s ", a->target->name);
+	if(a->blocking)
+		printf("= ");
+	else
+		printf("<= ");
+	verilog_dump_node(a->source);
+	printf("\n");
+}
+
+void verilog_dump_process(struct verilog_process *p)
+{
+	struct verilog_assignment *a;
+
+	if(p->clock == NULL)
+		printf("  process (comb):\n");
+	else
+		printf("  process (clock=%s):\n", p->clock->name);
+
+	a = p->head;
+	while(a != NULL) {
+		verilog_dump_assignment(a);
+		a = a->next;
+	}
+}
+
+void verilog_dump_module(struct verilog_module *m)
+{
+	struct verilog_signal *s;
+	struct verilog_process *p;
+	
+	printf("Module %s:\n", m->name);
+	s = m->shead;
+	while(s != NULL) {
+		verilog_dump_signal(s);
+		s = s->next;
+	}
+	p = m->phead;
+	while(p != NULL) {
+		verilog_dump_process(p);
+		p = p->next;
+	}
 }
