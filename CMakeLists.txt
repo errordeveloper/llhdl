@@ -16,3 +16,4 @@ add_subdirectory(libllhdl)
 
 add_subdirectory(samples)
 add_subdirectory(llhdl-resolveucf)
+add_subdirectory(llhdl-verilog)
