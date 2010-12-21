@@ -7,111 +7,6 @@
 #include "scanner.h"
 #include "verilog.h"
 
-extern void *ParseAlloc(void *(*mallocProc)(size_t));
-extern void ParseFree(void *p, void (*freeProc)(void *));
-extern void Parse(void *yyp, int yymajor, void *yyminor, struct verilog_module *outm);
-
-struct verilog_module *verilog_parse_fd(FILE *fd)
-{
-	struct scanner *s;
-	int tok;
-	void *p;
-	struct verilog_module *m;
-
-	s = scanner_new(fd);
-	m = verilog_new_module();
-	p = ParseAlloc(malloc);
-	assert(p != NULL);
-	tok = scanner_scan(s);
-	while(tok != TOK_EOF) {
-		Parse(p, tok, scanner_get_token(s), m);
-		if(tok == TOK_ERROR) {
-			ParseFree(p, free);
-			scanner_free(s);
-			return NULL;
-		}
-		tok = scanner_scan(s);
-	}
-	Parse(p, TOK_EOF, NULL, m);
-	ParseFree(p, free);
-	scanner_free(s);
-
-	return m;
-}
-
-struct verilog_module *verilog_parse_file(const char *filename)
-{
-	FILE *fd;
-	struct verilog_module *m;
-
-	fd = fopen(filename, "r");
-	if(fd == NULL) {
-		perror("verilog_parse_file");
-		exit(EXIT_FAILURE);
-	}
-	m = verilog_parse_fd(fd);
-	fclose(fd);
-	return m;
-}
-
-struct verilog_module *verilog_new_module()
-{
-	struct verilog_module *m;
-
-	m = malloc(sizeof(struct verilog_module));
-	assert(m != NULL);
-	m->name = NULL;
-	m->shead = NULL;
-	m->phead = NULL;
-	return m;
-}
-
-static void free_node(struct verilog_node *n)
-{
-	if((n->type != VERILOG_NODE_CONSTANT) && (n->type != VERILOG_NODE_SIGNAL)) {
-		int arity;
-		int i;
-
-		arity = verilog_get_node_arity(n->type);
-		for(i=0;i<arity;i++)
-			free_node(n->branches[i]);
-	}
-	if(n->type == VERILOG_NODE_CONSTANT)
-		free(n->branches[0]);
-	free(n);
-}
-
-void verilog_free_module(struct verilog_module *m)
-{
-	struct verilog_signal *s1, *s2;
-	struct verilog_process *p1, *p2;
-	struct verilog_assignment *a1, *a2;
-
-	s1 = m->shead;
-	while(s1 != NULL) {
-		s2 = s1->next;
-		free(s1);
-		s1 = s2;
-	}
-
-	p1 = m->phead;
-	while(p1 != NULL) {
-		a1 = p1->head;
-		while(a1 != NULL) {
-			free_node(a1->source);
-			a2 = a1->next;
-			free(a1);
-			a1 = a2;
-		}
-		p2 = p1->next;
-		free(p1);
-		p1 = p2;
-	}
-
-	free(m->name);
-	free(m);
-}
-
 struct verilog_constant *verilog_new_constant(int vectorsize, int sign, long long int value)
 {
 	struct verilog_constant *c;
@@ -312,4 +207,109 @@ void verilog_free_process(struct verilog_module *m, struct verilog_process *p)
 		before_p->next = p->next;
 	}
 	free(p);
+}
+
+struct verilog_module *verilog_new_module()
+{
+	struct verilog_module *m;
+
+	m = malloc(sizeof(struct verilog_module));
+	assert(m != NULL);
+	m->name = NULL;
+	m->shead = NULL;
+	m->phead = NULL;
+	return m;
+}
+
+static void free_node(struct verilog_node *n)
+{
+	if((n->type != VERILOG_NODE_CONSTANT) && (n->type != VERILOG_NODE_SIGNAL)) {
+		int arity;
+		int i;
+
+		arity = verilog_get_node_arity(n->type);
+		for(i=0;i<arity;i++)
+			free_node(n->branches[i]);
+	}
+	if(n->type == VERILOG_NODE_CONSTANT)
+		free(n->branches[0]);
+	free(n);
+}
+
+void verilog_free_module(struct verilog_module *m)
+{
+	struct verilog_signal *s1, *s2;
+	struct verilog_process *p1, *p2;
+	struct verilog_assignment *a1, *a2;
+
+	s1 = m->shead;
+	while(s1 != NULL) {
+		s2 = s1->next;
+		free(s1);
+		s1 = s2;
+	}
+
+	p1 = m->phead;
+	while(p1 != NULL) {
+		a1 = p1->head;
+		while(a1 != NULL) {
+			free_node(a1->source);
+			a2 = a1->next;
+			free(a1);
+			a1 = a2;
+		}
+		p2 = p1->next;
+		free(p1);
+		p1 = p2;
+	}
+
+	free(m->name);
+	free(m);
+}
+
+extern void *ParseAlloc(void *(*mallocProc)(size_t));
+extern void ParseFree(void *p, void (*freeProc)(void *));
+extern void Parse(void *yyp, int yymajor, void *yyminor, struct verilog_module *outm);
+
+struct verilog_module *verilog_parse_fd(FILE *fd)
+{
+	struct scanner *s;
+	int tok;
+	void *p;
+	struct verilog_module *m;
+
+	s = scanner_new(fd);
+	m = verilog_new_module();
+	p = ParseAlloc(malloc);
+	assert(p != NULL);
+	tok = scanner_scan(s);
+	while(tok != TOK_EOF) {
+		Parse(p, tok, scanner_get_token(s), m);
+		if(tok == TOK_ERROR) {
+			ParseFree(p, free);
+			scanner_free(s);
+			return NULL;
+		}
+		tok = scanner_scan(s);
+	}
+	Parse(p, TOK_EOF, NULL, m);
+	ParseFree(p, free);
+	scanner_free(s);
+
+	return m;
+}
+
+struct verilog_module *verilog_parse_file(const char *filename)
+{
+	FILE *fd;
+	struct verilog_module *m;
+
+	fd = fopen(filename, "r");
+	if(fd == NULL) {
+		perror("verilog_parse_file");
+		exit(EXIT_FAILURE);
+	}
+	m = verilog_parse_fd(fd);
+	fclose(fd);
+	return m;
 }

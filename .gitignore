@@ -1,3 +1,7 @@
 include/netlist/xilprims.h
 libnetlist/xilprims.c
 build
+llhdl-verilog/parser.c
+llhdl-verilog/parser.h
+llhdl-verilog/parser.out
+llhdl-verilog/scanner.c

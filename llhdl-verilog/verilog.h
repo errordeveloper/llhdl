@@ -59,12 +59,6 @@ struct verilog_module {
 	struct verilog_process *phead;
 };
 
-struct verilog_module *verilog_parse_fd(FILE *fd);
-struct verilog_module *verilog_parse_file(const char *filename);
-
-struct verilog_module *verilog_new_module();
-void verilog_free_module(struct verilog_module *m);
-
 struct verilog_constant *verilog_new_constant(int vectorsize, int sign, long long int value);
 struct verilog_constant *verilog_new_constant_str(char *str);
 
@@ -81,5 +75,11 @@ struct verilog_assignment *verilog_new_assignment(struct verilog_signal *target,
 
 struct verilog_process *verilog_new_process_assign(struct verilog_module *m, struct verilog_assignment *a);
 void verilog_free_process(struct verilog_module *m, struct verilog_process *p);
+
+struct verilog_module *verilog_new_module();
+void verilog_free_module(struct verilog_module *m);
+
+struct verilog_module *verilog_parse_fd(FILE *fd);
+struct verilog_module *verilog_parse_file(const char *filename);
 
 #endif /* __VERILOG_H */
