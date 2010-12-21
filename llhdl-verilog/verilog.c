@@ -221,6 +221,12 @@ struct verilog_module *verilog_new_module()
 	return m;
 }
 
+void verilog_set_module_name(struct verilog_module *m, const char *name)
+{
+	free(m->name);
+	m->name = strdup(name);
+}
+
 static void free_node(struct verilog_node *n)
 {
 	if((n->type != VERILOG_NODE_CONSTANT) && (n->type != VERILOG_NODE_SIGNAL)) {
@@ -276,6 +282,7 @@ struct verilog_module *verilog_parse_fd(FILE *fd)
 	struct scanner *s;
 	int tok;
 	void *p;
+	char *stoken;
 	struct verilog_module *m;
 
 	s = scanner_new(fd);
@@ -284,12 +291,9 @@ struct verilog_module *verilog_parse_fd(FILE *fd)
 	assert(p != NULL);
 	tok = scanner_scan(s);
 	while(tok != TOK_EOF) {
-		Parse(p, tok, scanner_get_token(s), m);
-		if(tok == TOK_ERROR) {
-			ParseFree(p, free);
-			scanner_free(s);
-			return NULL;
-		}
+		stoken = scanner_get_token(s);
+		printf("> %d / %s\n", tok, stoken);
+		Parse(p, tok, stoken, m);
 		tok = scanner_scan(s);
 	}
 	Parse(p, TOK_EOF, NULL, m);

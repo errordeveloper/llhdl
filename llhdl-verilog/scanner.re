@@ -173,5 +173,13 @@ comment:
 
 char *scanner_get_token(struct scanner *s)
 {
-	return strdup(s->tok);
+	int len;
+	char *ret;
+
+	len = s->cur - s->tok;
+	ret = malloc(len+1);
+	assert(ret != NULL);
+	memcpy(ret, s->tok, len);
+	ret[len] = 0;
+	return ret;
 }

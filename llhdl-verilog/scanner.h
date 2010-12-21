@@ -1,8 +1,6 @@
 #ifndef __SCANNER_H
 #define __SCANNER_H
 
-#define TOK_ERROR	(-1)
-
 struct scanner {
 	FILE *fd;
 	unsigned char *bot, *tok, *ptr, *cur, *pos, *lim, *top, *eof;

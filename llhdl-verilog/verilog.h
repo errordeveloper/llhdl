@@ -77,6 +77,7 @@ struct verilog_process *verilog_new_process_assign(struct verilog_module *m, str
 void verilog_free_process(struct verilog_module *m, struct verilog_process *p);
 
 struct verilog_module *verilog_new_module();
+void verilog_set_module_name(struct verilog_module *m, const char *name);
 void verilog_free_module(struct verilog_module *m);
 
 struct verilog_module *verilog_parse_fd(FILE *fd);
