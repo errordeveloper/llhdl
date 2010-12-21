@@ -132,6 +132,6 @@ body ::= body newsignal.
 body ::= body process.
 body ::= .
 
-module ::= TOK_MODULE TOK_ID(N) TOK_LPAREN io TOK_RPAREN TOK_SEMICOLON body TOK_ENDMODULE TOK_EOF. {
+module ::= TOK_MODULE TOK_ID(N) TOK_LPAREN io TOK_RPAREN TOK_SEMICOLON body TOK_ENDMODULE. {
 	verilog_set_module_name(outm, N);
 }

@@ -292,7 +292,6 @@ struct verilog_module *verilog_parse_fd(FILE *fd)
 	tok = scanner_scan(s);
 	while(tok != TOK_EOF) {
 		stoken = scanner_get_token(s);
-		printf("> %d / %s\n", tok, stoken);
 		Parse(p, tok, stoken, m);
 		tok = scanner_scan(s);
 	}

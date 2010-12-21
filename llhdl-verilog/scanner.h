@@ -1,6 +1,9 @@
 #ifndef __SCANNER_H
 #define __SCANNER_H
 
+/* Must be 0 to tell the parser to start */
+#define TOK_EOF 0
+
 struct scanner {
 	FILE *fd;
 	unsigned char *bot, *tok, *ptr, *cur, *pos, *lim, *top, *eof;
