@@ -11,5 +11,5 @@ add_custom_command(
 )
 
 add_executable(llhdl-verilog main.c verilog.c scanner.c parser.c transform.c)
-target_link_libraries(llhdl-verilog llhdl)
+target_link_libraries(llhdl-verilog banner llhdl)
 install(TARGETS llhdl-verilog DESTINATION bin)

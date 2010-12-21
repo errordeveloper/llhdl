@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#include <banner/banner.h>
+
 #include <llhdl/structure.h>
 #include <llhdl/exchange.h>
 
@@ -12,7 +14,8 @@ int main(int argc, char *argv[])
 	struct llhdl_module *lm;
 	
 	if(argc != 3) {
-		fprintf(stderr, "Usage: llhdl-verilog <input.v> <output.lhd>\n");
+		banner("Verilog to LLHDL compiler");
+		printf("Usage: llhdl-verilog <input.v> <output.lhd>\n");
 		return 1;
 	}
 	

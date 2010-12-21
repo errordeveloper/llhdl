@@ -4,6 +4,8 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <banner/banner.h>
+
 #include <netlist/symbol.h>
 
 static char *process_line(struct netlist_sym_store *sym, char *line)
@@ -60,7 +62,8 @@ int main(int argc, char *argv[])
 	int err;
 
 	if(argc != 4) {
-		fprintf(stderr, "Usage: llhdl-resolveucf <input.ucf> <symbols.sym> <output.ucf>\n");
+		banner("UCF symbol resolver");
+		printf("Usage: llhdl-resolveucf <input.ucf> <symbols.sym> <output.ucf>\n");
 		return 1;
 	}
 

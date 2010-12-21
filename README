@@ -2,7 +2,7 @@ LLHDL - Low Level Hardware Description Language
 An experimental logic synthesis infrastructure for FPGAs.
 
 (C) Copyright 2010 Sebastien Bourdeauducq.
-Released under GNU GPL version 3.
+Released under GNU GPL version 3. See file COPYING.
 
 Build requirements:
  * clang

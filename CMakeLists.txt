@@ -9,8 +9,20 @@ project(LLHDL)
 set(CMAKE_C_FLAGS "-O2 -Wall -D_GNU_SOURCE -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
 
+set(LLHDL_VERSION_MAJOR 0)
+set(LLHDL_VERSION_MINOR 0)
+set(LLHDL_VERSION_PATCH 1)
+
+configure_file(
+	"${PROJECT_SOURCE_DIR}/include/config.h.in"
+	"${PROJECT_BINARY_DIR}/config.h"
+)
+
+include_directories("${PROJECT_BINARY_DIR}")
+
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
+add_subdirectory(libbanner)
 add_subdirectory(libnetlist)
 add_subdirectory(libllhdl)
 
