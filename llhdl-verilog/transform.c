@@ -161,6 +161,11 @@ struct llhdl_node *make_llhdl_node(struct verilog_node *n, struct enumeration *e
 		neg = make_llhdl_node(n, e, s->next);
 		s->value = 1;
 		pos = make_llhdl_node(n, e, s->next);
+		if((neg->type == LLHDL_NODE_BOOLEAN) && (pos->type == LLHDL_NODE_BOOLEAN)
+		  && (neg->p.boolean.value == pos->p.boolean.value)) {
+			llhdl_free_node(neg);
+			return pos;
+		}
 		return llhdl_create_mux(sel, neg, pos);
 	}
 }

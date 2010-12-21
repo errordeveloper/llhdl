@@ -18,8 +18,6 @@ int main(int argc, char *argv[])
 	
 	vm = verilog_parse_file(argv[1]);
 	lm = llhdl_new_module();
-
-	verilog_dump_module(vm);
 	
 	transform(lm, vm);
 
