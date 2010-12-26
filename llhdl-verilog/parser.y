@@ -12,7 +12,7 @@
 %token_destructor { free($$); }
 
 %type constant {struct verilog_constant *}
-%destructor constant { free($$); }
+%destructor constant { verilog_free_constant($$); }
 
 constant(C) ::= TOK_VCON(V). {
 	C = verilog_new_constant_str(V);
@@ -45,10 +45,14 @@ newsignal(S) ::= TOK_INPUT TOK_REGWIRE TOK_ID(I). {
 
 signal(S) ::= TOK_ID(I). {
 	S = verilog_find_signal(outm, I);
+	if(S == NULL) {
+		fprintf(stderr, "Signal not found: %s\n", I);
+		exit(EXIT_FAILURE);
+	}
 }
 
 %type node {struct verilog_node *}
-%destructor node { free($$); }
+%destructor node { verilog_free_node($$); }
 
 node(N) ::= constant(C). {
 	N = verilog_new_constant_node(C);
@@ -109,21 +113,71 @@ node(N) ::= TOK_LPAREN node(A) TOK_RPAREN. {
 	N = A;
 }
 
-%type assignment {struct verilog_assignment *}
-%destructor assignment { free($$); }
+%type singleassignment {struct verilog_statement *}
+%destructor singleassignment { verilog_free_statement($$); }
 
-assignment(A) ::= signal(D) TOK_BASSIGN node(S). {
+singleassignment(A) ::= signal(D) TOK_BASSIGN node(S). {
 	A = verilog_new_assignment(D, 1, S);
 }
+
+singleassignment(A) ::= signal(D) TOK_NBASSIGN node(S). {
+	A = verilog_new_assignment(D, 0, S);
+}
+
+%type statement {struct verilog_statement *}
+%destructor statement { verilog_free_statement_list($$); }
+
+%type singlecondition {struct verilog_statement *}
+%destructor singlecondition { verilog_free_statement($$); }
+
+singlecondition(C) ::= TOK_IF TOK_LPAREN node(E) TOK_RPAREN statement(S). {
+	C = verilog_new_condition(E, NULL, S);
+}
+
+/*singlecondition(C) ::= TOK_IF TOK_LPAREN node(E) TOK_RPAREN statement(P) TOK_ELSE statement(N). {
+	C = verilog_new_condition(E, N, P);
+}*/
+
+%type singlestatement {struct verilog_statement *}
+%destructor singlestatement { verilog_free_statement($$); }
+
+singlestatement(S) ::= singleassignment(A) TOK_SEMICOLON. { S = A; }
+singlestatement(S) ::= singlecondition(C). { S = C; }
+
+%type statementlist {struct verilog_statement *}
+%destructor statementlist { verilog_free_statement_list($$); }
+
+statementlist(L) ::= statementlist(B) singlestatement(S). {
+	if(B != NULL) {
+		B->next = S;
+		L = B;
+	} else
+		L = S;
+}
+statementlist(L) ::= TOK_SEMICOLON. { L = NULL; }
+statementlist(L) ::= . { L = NULL; }
+
+statement(S) ::= singlestatement(X). { S = X; }
+statement(S) ::= TOK_BEGIN statementlist(L) TOK_END. { S = L; }
 
 %type process {struct verilog_process *}
 %destructor process { verilog_free_process(outm, $$); }
 
-process(P) ::= TOK_ASSIGN assignment(A) TOK_SEMICOLON. {
-	P = verilog_new_process_assign(outm, A);
+process(P) ::= TOK_ASSIGN singleassignment(A) TOK_SEMICOLON. {
+	P = verilog_new_process(outm, NULL, A);
+}
+
+process(P) ::= TOK_ALWAYS TOK_AT TOK_LPAREN TOK_STAR TOK_RPAREN statement(S). {
+	P = verilog_new_process(outm, NULL, S);
+}
+
+process(P) ::= TOK_ALWAYS TOK_AT TOK_LPAREN TOK_POSEDGE signal(C) TOK_RPAREN statement(S). {
+	P = verilog_new_process(outm, C, S);
 }
 
 /* FIXME: this accepts wire/reg declarations in the module header */
+
+/* FIXME: add destructors for io and body */
 
 io(I) ::= io TOK_COMMA newsignal(S). { I = S; }
 io(I) ::= newsignal(S). { I = S; }

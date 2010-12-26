@@ -61,6 +61,11 @@ struct verilog_constant *verilog_new_constant_str(char *str)
 	return c;
 }
 
+void verilog_free_constant(struct verilog_constant *c)
+{
+	free(c);
+}
+
 struct verilog_signal *verilog_find_signal(struct verilog_module *m, const char *signal)
 {
 	struct verilog_signal *s;
@@ -113,6 +118,18 @@ void verilog_free_signal(struct verilog_module *m, struct verilog_signal *s)
 		before_s->next = s->next;
 	}
 	free(s);
+}
+
+void verilog_free_signal_list(struct verilog_signal *head)
+{
+	struct verilog_signal *s1, *s2;
+	
+	s1 = head;
+	while(s1 != NULL) {
+		s2 = s1->next;
+		free(s1);
+		s1 = s2;
+	}
 }
 
 int verilog_get_node_arity(int type)
@@ -170,26 +187,92 @@ struct verilog_node *verilog_new_op_node(int type)
 	return n;
 }
 
-struct verilog_assignment *verilog_new_assignment(struct verilog_signal *target, int blocking, struct verilog_node *source)
+void verilog_free_node(struct verilog_node *n)
 {
-	struct verilog_assignment *a;
+	if((n->type != VERILOG_NODE_CONSTANT) && (n->type != VERILOG_NODE_SIGNAL)) {
+		int arity;
+		int i;
 
-	a = malloc(sizeof(struct verilog_assignment));
-	assert(a != NULL);
-	a->target = target;
-	a->blocking = blocking;
-	a->source = source;
-	return a;
+		arity = verilog_get_node_arity(n->type);
+		for(i=0;i<arity;i++)
+			verilog_free_node(n->branches[i]);
+	}
+	if(n->type == VERILOG_NODE_CONSTANT)
+		free(n->branches[0]);
+	free(n);
 }
 
-struct verilog_process *verilog_new_process_assign(struct verilog_module *m, struct verilog_assignment *a)
+static struct verilog_statement *alloc_base_statement(int extra, int type)
+{
+	struct verilog_statement *s;
+	
+	s = malloc(sizeof(int)+sizeof(void)+extra);
+	assert(s != NULL);
+	s->type = type;
+	s->next = NULL;
+	return s;
+}
+
+struct verilog_statement *verilog_new_assignment(struct verilog_signal *target, int blocking, struct verilog_node *source)
+{
+	struct verilog_statement *s;
+
+	s = alloc_base_statement(sizeof(struct verilog_assignment), VERILOG_STATEMENT_ASSIGNMENT);
+	s->p.assignment.target = target;
+	s->p.assignment.blocking = blocking;
+	s->p.assignment.source = source;
+	return s;
+}
+
+struct verilog_statement *verilog_new_condition(struct verilog_node *condition, struct verilog_statement *negative, struct verilog_statement *positive)
+{
+	struct verilog_statement *s;
+
+	s = alloc_base_statement(sizeof(struct verilog_condition), VERILOG_STATEMENT_CONDITION);
+	s->p.condition.condition = condition;
+	s->p.condition.negative = negative;
+	s->p.condition.positive = positive;
+	return s;
+}
+
+void verilog_free_statement(struct verilog_statement *s)
+{
+	switch(s->type) {
+		case VERILOG_STATEMENT_ASSIGNMENT:
+			verilog_free_node(s->p.assignment.source);
+			break;
+		case VERILOG_STATEMENT_CONDITION:
+			verilog_free_node(s->p.condition.condition);
+			verilog_free_statement_list(s->p.condition.negative);
+			verilog_free_statement_list(s->p.condition.positive);
+			break;
+		default:
+			assert(0);
+			break;
+	}
+	free(s);
+}
+
+void verilog_free_statement_list(struct verilog_statement *head)
+{
+	struct verilog_statement *s1, *s2;
+	
+	s1 = head;
+	while(s1 != NULL) {
+		s2 = s1->next;
+		verilog_free_statement(s1);
+		s1 = s2;
+	}
+}
+
+struct verilog_process *verilog_new_process(struct verilog_module *m, struct verilog_signal *clock, struct verilog_statement *head)
 {
 	struct verilog_process *p;
 
 	p = malloc(sizeof(struct verilog_process));
 	assert(p != NULL);
-	p->clock = NULL;
-	p->head = p->tail = a;
+	p->clock = clock;
+	p->head = head;
 	p->next = m->phead;
 	m->phead = p;
 	return p;
@@ -208,7 +291,21 @@ void verilog_free_process(struct verilog_module *m, struct verilog_process *p)
 		}
 		before_p->next = p->next;
 	}
+	verilog_free_statement_list(p->head);
 	free(p);
+}
+
+void verilog_free_process_list(struct verilog_process *head)
+{
+	struct verilog_process *p1, *p2;
+	
+	p1 = head;
+	while(p1 != NULL) {
+		p2 = p1->next;
+		verilog_free_statement_list(p1->head);
+		free(p1);
+		p1 = p2;
+	}
 }
 
 struct verilog_module *verilog_new_module()
@@ -229,48 +326,10 @@ void verilog_set_module_name(struct verilog_module *m, const char *name)
 	m->name = strdup(name);
 }
 
-static void free_node(struct verilog_node *n)
-{
-	if((n->type != VERILOG_NODE_CONSTANT) && (n->type != VERILOG_NODE_SIGNAL)) {
-		int arity;
-		int i;
-
-		arity = verilog_get_node_arity(n->type);
-		for(i=0;i<arity;i++)
-			free_node(n->branches[i]);
-	}
-	if(n->type == VERILOG_NODE_CONSTANT)
-		free(n->branches[0]);
-	free(n);
-}
-
 void verilog_free_module(struct verilog_module *m)
 {
-	struct verilog_signal *s1, *s2;
-	struct verilog_process *p1, *p2;
-	struct verilog_assignment *a1, *a2;
-
-	s1 = m->shead;
-	while(s1 != NULL) {
-		s2 = s1->next;
-		free(s1);
-		s1 = s2;
-	}
-
-	p1 = m->phead;
-	while(p1 != NULL) {
-		a1 = p1->head;
-		while(a1 != NULL) {
-			free_node(a1->source);
-			a2 = a1->next;
-			free(a1);
-			a1 = a2;
-		}
-		p2 = p1->next;
-		free(p1);
-		p1 = p2;
-	}
-
+	verilog_free_signal_list(m->shead);
+	verilog_free_process_list(m->phead);
 	free(m->name);
 	free(m);
 }
@@ -321,24 +380,37 @@ struct verilog_module *verilog_parse_file(const char *filename)
 	return m;
 }
 
-void verilog_dump_signal(struct verilog_signal *s)
+static void indent(int n)
 {
-	switch(s->type) {
-		case VERILOG_SIGNAL_REGWIRE:
-			printf("  signal ");
-			break;
-		case VERILOG_SIGNAL_OUTPUT:
-			printf("  output ");
-			break;
-		case VERILOG_SIGNAL_INPUT:
-			printf("  input ");
-			break;
+	int i;
+	
+	for(i=0;i<n;i++)
+		printf("  ");
+}
+
+void verilog_dump_signal_list(int level, struct verilog_signal *head)
+{
+	level++;
+	while(head != NULL) {
+		indent(level);
+		switch(head->type) {
+			case VERILOG_SIGNAL_REGWIRE:
+				printf("signal ");
+				break;
+			case VERILOG_SIGNAL_OUTPUT:
+				printf("output ");
+				break;
+			case VERILOG_SIGNAL_INPUT:
+				printf("input ");
+				break;
+		}
+		if(head->sign)
+			printf("signed ");
+		if(head->vectorsize > 1)
+			printf("<%d> ", head->vectorsize);
+		printf("%s\n", head->name);
+		head = head->next;
 	}
-	if(s->sign)
-		printf("signed ");
-	if(s->vectorsize > 1)
-		printf("<%d> ", s->vectorsize);
-	printf("%s\n", s->name);
 }
 
 void verilog_dump_node(struct verilog_node *n)
@@ -408,47 +480,62 @@ void verilog_dump_node(struct verilog_node *n)
 	}
 }
 
-void verilog_dump_assignment(struct verilog_assignment *a)
+void verilog_dump_statement_list(int level, struct verilog_statement *head)
 {
-	printf("    %s ", a->target->name);
-	if(a->blocking)
-		printf("= ");
-	else
-		printf("<= ");
-	verilog_dump_node(a->source);
-	printf("\n");
-}
-
-void verilog_dump_process(struct verilog_process *p)
-{
-	struct verilog_assignment *a;
-
-	if(p->clock == NULL)
-		printf("  process (comb):\n");
-	else
-		printf("  process (clock=%s):\n", p->clock->name);
-
-	a = p->head;
-	while(a != NULL) {
-		verilog_dump_assignment(a);
-		a = a->next;
+	level++;
+	while(head != NULL) {
+		switch(head->type) {
+			case VERILOG_STATEMENT_ASSIGNMENT:
+				indent(level);
+				printf("%s ", head->p.assignment.target->name);
+				if(head->p.assignment.blocking)
+					printf("= ");
+				else
+					printf("<= ");
+				verilog_dump_node(head->p.assignment.source);
+				printf("\n");
+				break;
+			case VERILOG_STATEMENT_CONDITION:
+				indent(level);
+				printf("if(");
+				verilog_dump_node(head->p.condition.condition);
+				printf(") begin\n");
+				verilog_dump_statement_list(level, head->p.condition.positive);
+				if(head->p.condition.negative != NULL) {
+					indent(level);
+					printf("end else begin\n");
+					verilog_dump_statement_list(level, head->p.condition.negative);
+				}
+				indent(level);
+				printf("end\n");
+				break;
+			default:
+				assert(0);
+				break;
+		}
+		head = head->next;
 	}
 }
 
-void verilog_dump_module(struct verilog_module *m)
+void verilog_dump_process_list(int level, struct verilog_process *head)
 {
-	struct verilog_signal *s;
-	struct verilog_process *p;
-	
+	level++;
+	while(head != NULL) {
+		indent(level);
+		if(head->clock == NULL)
+			printf("process (comb):\n");
+		else
+			printf("process (clock=%s):\n", head->clock->name);
+		verilog_dump_statement_list(level, head->head);
+		head = head->next;
+	}
+}
+
+void verilog_dump_module(int level, struct verilog_module *m)
+{
+	level++;
+	indent(level);
 	printf("Module %s:\n", m->name);
-	s = m->shead;
-	while(s != NULL) {
-		verilog_dump_signal(s);
-		s = s->next;
-	}
-	p = m->phead;
-	while(p != NULL) {
-		verilog_dump_process(p);
-		p = p->next;
-	}
+	verilog_dump_signal_list(level, m->shead);
+	verilog_dump_process_list(level, m->phead);
 }

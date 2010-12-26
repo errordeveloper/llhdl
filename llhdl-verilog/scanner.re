@@ -107,6 +107,13 @@ std:
 	"input"			{ RET(TOK_INPUT); }
 	"output"		{ RET(TOK_OUTPUT); }
 	"assign"		{ RET(TOK_ASSIGN); }
+	"if"			{ RET(TOK_IF); }
+	"begin"			{ RET(TOK_BEGIN); }
+	"end"			{ RET(TOK_END); }
+	"always"		{ RET(TOK_ALWAYS); }
+	"@"			{ RET(TOK_AT); }
+	"posedge"		{ RET(TOK_POSEDGE); }
+	"*"			{ RET(TOK_STAR); }
 
 	L (L|D)*		{ RET(TOK_ID); }
 
@@ -115,12 +122,14 @@ std:
 	(D* "'d" D+) |
 	(D* "'x" H+)		{ RET(TOK_VCON); }
 
+	"="			{ RET(TOK_BASSIGN); }
+	"<="			{ RET(TOK_NBASSIGN); }
+
 	"=="			{ RET(TOK_EQL); }
 	"!="			{ RET(TOK_NEQ); }
 	";"			{ RET(TOK_SEMICOLON); }
 	","			{ RET(TOK_COMMA); }
 	":"			{ RET(TOK_COLON); }
-	"="			{ RET(TOK_BASSIGN); }
 	"("			{ RET(TOK_LPAREN); }
 	")"			{ RET(TOK_RPAREN); }
 	"&"			{ RET(TOK_AND); }

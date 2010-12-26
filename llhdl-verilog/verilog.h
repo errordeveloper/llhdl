@@ -43,14 +43,33 @@ struct verilog_assignment {
 	struct verilog_signal *target;
 	int blocking;
 	struct verilog_node *source;
-	struct verilog_assignment *next;
 };
 
-/* TODO: assignment list should be replaced by statement list (for if, case, etc.) */
+struct verilog_statement;
+
+struct verilog_condition {
+	struct verilog_node *condition;
+	struct verilog_statement *negative;
+	struct verilog_statement *positive;
+};
+
+enum {
+	VERILOG_STATEMENT_ASSIGNMENT,
+	VERILOG_STATEMENT_CONDITION
+};
+
+struct verilog_statement {
+	int type;
+	struct verilog_statement *next;		/* < next statement at this level */
+	union {
+		struct verilog_assignment assignment;
+		struct verilog_condition condition;
+	} p;
+};
+
 struct verilog_process {
 	struct verilog_signal *clock;		/* < NULL if combinatorial */
-	struct verilog_assignment *head;
-	struct verilog_assignment *tail;	/* < tail of the assignment list, for speedy add at the end */
+	struct verilog_statement *head;		/* < first statement in this process */
 	struct verilog_process *next;
 };
 
@@ -63,20 +82,27 @@ struct verilog_module {
 /* structure manipulation */
 struct verilog_constant *verilog_new_constant(int vectorsize, int sign, long long int value);
 struct verilog_constant *verilog_new_constant_str(char *str);
+void verilog_free_constant(struct verilog_constant *c);
 
 struct verilog_signal *verilog_find_signal(struct verilog_module *m, const char *signal);
 struct verilog_signal *verilog_new_update_signal(struct verilog_module *m, int type, const char *name, int vectorsize, int sign);
 void verilog_free_signal(struct verilog_module *m, struct verilog_signal *s);
+void verilog_free_signal_list(struct verilog_signal *head);
 
 int verilog_get_node_arity(int type);
 struct verilog_node *verilog_new_constant_node(struct verilog_constant *constant);
 struct verilog_node *verilog_new_signal_node(struct verilog_signal *signal);
 struct verilog_node *verilog_new_op_node(int type);
+void verilog_free_node(struct verilog_node *n);
 
-struct verilog_assignment *verilog_new_assignment(struct verilog_signal *target, int blocking, struct verilog_node *source);
+struct verilog_statement *verilog_new_assignment(struct verilog_signal *target, int blocking, struct verilog_node *source);
+struct verilog_statement *verilog_new_condition(struct verilog_node *condition, struct verilog_statement *negative, struct verilog_statement *positive);
+void verilog_free_statement(struct verilog_statement *s);
+void verilog_free_statement_list(struct verilog_statement *head);
 
-struct verilog_process *verilog_new_process_assign(struct verilog_module *m, struct verilog_assignment *a);
+struct verilog_process *verilog_new_process(struct verilog_module *m, struct verilog_signal *clock, struct verilog_statement *head);
 void verilog_free_process(struct verilog_module *m, struct verilog_process *p);
+void verilog_free_process_list(struct verilog_process *head);
 
 struct verilog_module *verilog_new_module();
 void verilog_set_module_name(struct verilog_module *m, const char *name);
@@ -87,10 +113,10 @@ struct verilog_module *verilog_parse_fd(FILE *fd);
 struct verilog_module *verilog_parse_file(const char *filename);
 
 /* dump (for debugging) */
-void verilog_dump_signal(struct verilog_signal *s);
+void verilog_dump_signal_list(int level, struct verilog_signal *head);
 void verilog_dump_node(struct verilog_node *n);
-void verilog_dump_assignment(struct verilog_assignment *a);
-void verilog_dump_process(struct verilog_process *p);
-void verilog_dump_module(struct verilog_module *m);
+void verilog_dump_statement_list(int level, struct verilog_statement *head);
+void verilog_dump_process_list(int level, struct verilog_process *head);
+void verilog_dump_module(int level, struct verilog_module *m);
 
 #endif /* __VERILOG_H */
