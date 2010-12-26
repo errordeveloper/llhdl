@@ -48,7 +48,7 @@ struct verilog_constant *verilog_new_constant_str(char *str)
 			case 'd':
 				base = 10;
 				break;
-			case 'x':
+			case 'h':
 				base = 16;
 				break;
 			default:
@@ -497,17 +497,15 @@ void verilog_dump_statement_list(int level, struct verilog_statement *head)
 				break;
 			case VERILOG_STATEMENT_CONDITION:
 				indent(level);
-				printf("if(");
+				printf("if");
 				verilog_dump_node(head->p.condition.condition);
-				printf(") begin\n");
+				printf(":\n");
 				verilog_dump_statement_list(level, head->p.condition.positive);
 				if(head->p.condition.negative != NULL) {
 					indent(level);
-					printf("end else begin\n");
+					printf("else:\n");
 					verilog_dump_statement_list(level, head->p.condition.negative);
 				}
-				indent(level);
-				printf("end\n");
 				break;
 			default:
 				assert(0);

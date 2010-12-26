@@ -114,7 +114,7 @@ node(N) ::= TOK_LPAREN node(A) TOK_RPAREN. {
 }
 
 %type singleassignment {struct verilog_statement *}
-%destructor singleassignment { verilog_free_statement($$); }
+%destructor singleassignment { verilog_free_statement_list($$); }
 
 singleassignment(A) ::= signal(D) TOK_BASSIGN node(S). {
 	A = verilog_new_assignment(D, 1, S);
@@ -124,32 +124,46 @@ singleassignment(A) ::= signal(D) TOK_NBASSIGN node(S). {
 	A = verilog_new_assignment(D, 0, S);
 }
 
+/* See http://marvin.cs.uidaho.edu/~heckendo/CS445/danglingElse.html */
+
 %type statement {struct verilog_statement *}
 %destructor statement { verilog_free_statement_list($$); }
+%type matched {struct verilog_statement *}
+%destructor matched { verilog_free_statement_list($$); }
+%type unmatched {struct verilog_statement *}
+%destructor unmatched { verilog_free_statement_list($$); }
 
-%type singlecondition {struct verilog_statement *}
-%destructor singlecondition { verilog_free_statement($$); }
+matched(C) ::= TOK_IF TOK_LPAREN node(E) TOK_RPAREN matched(P) TOK_ELSE matched(N). {
+	C = verilog_new_condition(E, N, P);
+}
 
-singlecondition(C) ::= TOK_IF TOK_LPAREN node(E) TOK_RPAREN statement(S). {
+unmatched(C) ::= TOK_IF TOK_LPAREN node(E) TOK_RPAREN matched(S). {
 	C = verilog_new_condition(E, NULL, S);
 }
 
-/*singlecondition(C) ::= TOK_IF TOK_LPAREN node(E) TOK_RPAREN statement(P) TOK_ELSE statement(N). {
+unmatched(C) ::= TOK_IF TOK_LPAREN node(E) TOK_RPAREN unmatched(S). {
+	C = verilog_new_condition(E, NULL, S);
+}
+
+unmatched(C) ::= TOK_IF TOK_LPAREN node(E) TOK_RPAREN matched(P) TOK_ELSE unmatched(N). {
 	C = verilog_new_condition(E, N, P);
-}*/
+}
 
-%type singlestatement {struct verilog_statement *}
-%destructor singlestatement { verilog_free_statement($$); }
+matched(S) ::= singleassignment(A) TOK_SEMICOLON. { S = A; }
 
-singlestatement(S) ::= singleassignment(A) TOK_SEMICOLON. { S = A; }
-singlestatement(S) ::= singlecondition(C). { S = C; }
+statement(S) ::= matched(M). { S = M; }
+statement(S) ::= unmatched(U). { S = U; }
 
 %type statementlist {struct verilog_statement *}
 %destructor statementlist { verilog_free_statement_list($$); }
 
-statementlist(L) ::= statementlist(B) singlestatement(S). {
+statementlist(L) ::= statementlist(B) statement(S). {
 	if(B != NULL) {
-		B->next = S;
+		struct verilog_statement *s;
+		s = B;
+		while(s->next != NULL)
+			s = s->next;
+		s->next = S;
 		L = B;
 	} else
 		L = S;
@@ -157,8 +171,7 @@ statementlist(L) ::= statementlist(B) singlestatement(S). {
 statementlist(L) ::= TOK_SEMICOLON. { L = NULL; }
 statementlist(L) ::= . { L = NULL; }
 
-statement(S) ::= singlestatement(X). { S = X; }
-statement(S) ::= TOK_BEGIN statementlist(L) TOK_END. { S = L; }
+matched(S) ::= TOK_BEGIN statementlist(L) TOK_END. { S = L; }
 
 %type process {struct verilog_process *}
 %destructor process { verilog_free_process(outm, $$); }

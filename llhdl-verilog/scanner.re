@@ -108,6 +108,7 @@ std:
 	"output"		{ RET(TOK_OUTPUT); }
 	"assign"		{ RET(TOK_ASSIGN); }
 	"if"			{ RET(TOK_IF); }
+	"else"			{ RET(TOK_ELSE); }
 	"begin"			{ RET(TOK_BEGIN); }
 	"end"			{ RET(TOK_END); }
 	"always"		{ RET(TOK_ALWAYS); }
@@ -120,7 +121,7 @@ std:
 	(D* "'b" B+) |
 	(D* "'o" O+) |
 	(D* "'d" D+) |
-	(D* "'x" H+)		{ RET(TOK_VCON); }
+	(D* "'h" H+)		{ RET(TOK_VCON); }
 
 	"="			{ RET(TOK_BASSIGN); }
 	"<="			{ RET(TOK_NBASSIGN); }
