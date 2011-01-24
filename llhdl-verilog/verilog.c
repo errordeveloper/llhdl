@@ -537,3 +537,54 @@ void verilog_dump_module(int level, struct verilog_module *m)
 	verilog_dump_signal_list(level, m->shead);
 	verilog_dump_process_list(level, m->phead);
 }
+
+static void verilog_update_bl(int *previous, int new)
+{
+	if(new == VERILOG_BL_EMPTY)
+		return;
+	if(*previous == VERILOG_BL_EMPTY) {
+		*previous = new;
+		return;
+	}
+	if(*previous != new)
+		*previous = VERILOG_BL_MIXED;
+}
+
+int verilog_statements_blocking(struct verilog_statement *s)
+{
+	int r;
+	
+	r = VERILOG_BL_EMPTY;
+	while(s != NULL) {
+		switch(s->type) {
+			case VERILOG_STATEMENT_ASSIGNMENT:
+				if(s->p.assignment.blocking)
+					verilog_update_bl(&r, VERILOG_BL_BLOCKING);
+				else
+					verilog_update_bl(&r, VERILOG_BL_NONBLOCKING);
+				break;
+			case VERILOG_STATEMENT_CONDITION:
+				verilog_update_bl(&r, verilog_statements_blocking(s->p.condition.negative));
+				verilog_update_bl(&r, verilog_statements_blocking(s->p.condition.positive));
+				break;
+			default:
+				assert(0);
+				break;
+		}
+		s = s->next;
+	}
+	return r;
+}
+
+int verilog_process_blocking(struct verilog_process *p)
+{
+	int r;
+	
+	r = verilog_statements_blocking(p->head);
+
+	/* Non-clocked processes must use blocking assignments */
+	if((p->clock == NULL) && (r == VERILOG_BL_NONBLOCKING))
+		r = VERILOG_BL_MIXED;
+
+	return r;
+}

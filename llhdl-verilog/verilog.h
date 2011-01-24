@@ -119,4 +119,15 @@ void verilog_dump_statement_list(int level, struct verilog_statement *head);
 void verilog_dump_process_list(int level, struct verilog_process *head);
 void verilog_dump_module(int level, struct verilog_module *m);
 
+/* utility functions */
+enum {
+	VERILOG_BL_EMPTY,
+	VERILOG_BL_BLOCKING,
+	VERILOG_BL_NONBLOCKING,
+	VERILOG_BL_MIXED
+};
+
+int verilog_statements_blocking(struct verilog_statement *s);
+int verilog_process_blocking(struct verilog_process *p);
+
 #endif /* __VERILOG_H */

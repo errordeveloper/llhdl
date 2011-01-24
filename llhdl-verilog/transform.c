@@ -32,11 +32,13 @@ static void transfer_signals(struct llhdl_module *lm, struct verilog_module *vm)
 struct enumerated_signal {
 	struct verilog_signal *orig;
 	int value;
+	struct enumerated_signal *xref;
 	struct enumerated_signal *next;
 };
 
 struct enumeration {
-	struct enumerated_signal *head;
+	struct enumerated_signal *ihead;
+	struct enumerated_signal *ohead;
 };
 
 static struct enumeration *new_enumeration()
@@ -45,7 +47,8 @@ static struct enumeration *new_enumeration()
 
 	e = malloc(sizeof(struct enumeration));
 	assert(e != NULL);
-	e->head = NULL;
+	e->ihead = NULL;
+	e->ohead = NULL;
 	return e;
 }
 
@@ -53,7 +56,13 @@ static void free_enumeration(struct enumeration *e)
 {
 	struct enumerated_signal *s1, *s2;
 	
-	s1 = e->head;
+	s1 = e->ihead;
+	while(s1 != NULL) {
+		s2 = s1->next;
+		free(s1);
+		s1 = s2;
+	}
+	s1 = e->ohead;
 	while(s1 != NULL) {
 		s2 = s1->next;
 		free(s1);
@@ -62,11 +71,11 @@ static void free_enumeration(struct enumeration *e)
 	free(e);
 }
 
-static struct enumerated_signal *find_signal_in_enumeration(struct enumeration *e, struct verilog_signal *orig)
+static struct enumerated_signal *find_signal_in_enumeration(struct enumeration *e, struct verilog_signal *orig, int input)
 {
 	struct enumerated_signal *s;
 
-	s = e->head;
+	s = input ? e->ihead : e->ohead;
 	while(s != NULL) {
 		if(s->orig == orig) return s;
 		s = s->next;
@@ -74,18 +83,24 @@ static struct enumerated_signal *find_signal_in_enumeration(struct enumeration *
 	return NULL;
 }
 
-static void add_enumeration(struct enumeration *e, struct verilog_signal *orig)
+static void add_enumeration(struct enumeration *e, struct verilog_signal *orig, int input)
 {
 	struct enumerated_signal *new;
 	
-	if(find_signal_in_enumeration(e, orig) != NULL)
+	if(find_signal_in_enumeration(e, orig, input) != NULL)
 		return;
 	new = malloc(sizeof(struct enumerated_signal));
 	assert(new != NULL);
 	new->orig = orig;
 	new->value = 0;
-	new->next = e->head;
-	e->head = new;
+	new->xref = NULL;
+	if(input) {
+		new->next = e->ihead;
+		e->ihead = new;
+	} else {
+		new->next = e->ohead;
+		e->ohead = new;
+	}
 }
 
 static void enumerate_node(struct enumeration *e, struct verilog_node *n)
@@ -99,17 +114,48 @@ static void enumerate_node(struct enumeration *e, struct verilog_node *n)
 			enumerate_node(e, n->branches[i]);
 	}
 	if(n->type == VERILOG_NODE_SIGNAL)
-		add_enumeration(e, n->branches[0]);
+		add_enumeration(e, n->branches[0], 1);
 }
 
+static void enumerate_statements(struct enumeration *e, struct verilog_statement *s)
+{
+	while(s != NULL) {
+		switch(s->type) {
+			case VERILOG_STATEMENT_ASSIGNMENT:
+				enumerate_node(e, s->p.assignment.source);
+				add_enumeration(e, s->p.assignment.target, 0);
+				break;
+			case VERILOG_STATEMENT_CONDITION:
+				enumerate_node(e, s->p.condition.condition);
+				enumerate_statements(e, s->p.condition.negative);
+				enumerate_statements(e, s->p.condition.positive);
+				break;
+			default:
+				assert(0);
+				break;
+		}
+		s = s->next;
+	}
+}
+
+/* Clock (if any) is not included in the process enumeration */
 static void enumerate_process(struct enumeration *e, struct verilog_process *p)
 {
-	struct verilog_assignment *a;
+	enumerate_statements(e, p->head);
+}
 
-	a = p->head;
-	while(a != NULL) {
-		enumerate_node(e, a->source);
-		a = a->next;
+static void enumerate_xref(struct enumeration *e)
+{
+	struct enumerated_signal *s, *found;
+	
+	s = e->ohead;
+	while(s != NULL) {
+		found = find_signal_in_enumeration(e, s->orig, 1);
+		if(found != NULL) {
+			found->xref = s;
+			s->xref = found;
+		}
+		s = s->next;
 	}
 }
 
@@ -130,7 +176,12 @@ static int evaluate_node(struct verilog_node *n, struct enumeration *e)
 			return ((struct verilog_constant *)n->branches[0])->value;
 		case VERILOG_NODE_SIGNAL: {
 			struct enumerated_signal *s;
-			s = find_signal_in_enumeration(e, n->branches[0]);
+			s = find_signal_in_enumeration(e, n->branches[0], 1);
+			/* If the process is using blocking assignments, 
+			 * use the value assigned in the process, if any.
+			 */
+			if((s->xref != NULL) && (s->xref->value != -1))
+				return s->xref->value;
 			return s->value;
 		}
 		case VERILOG_NODE_EQL: return values[0] == values[1];
@@ -146,7 +197,7 @@ static int evaluate_node(struct verilog_node *n, struct enumeration *e)
 	}
 }
 
-struct llhdl_node *make_llhdl_node(struct verilog_node *n, struct enumeration *e, struct enumerated_signal *s)
+/*struct llhdl_node *make_llhdl_node(struct verilog_node *n, struct enumeration *e, struct enumerated_signal *s)
 {
 	if(s == NULL) {
 		int v;
@@ -168,23 +219,46 @@ struct llhdl_node *make_llhdl_node(struct verilog_node *n, struct enumeration *e
 		}
 		return llhdl_create_mux(sel, neg, pos);
 	}
+}*/
+
+static void register_process(struct verilog_process *p, struct enumeration *e)
+{
+	struct enumerated_signal *s;
+	struct llhdl_node *ls;
+	
+	if(p->clock != NULL) {
+		s = e->ohead;
+		while(s != NULL) {
+			ls = s->orig->user;
+			assert(ls->type == LLHDL_NODE_SIGNAL);
+			assert(ls->p.signal.source != NULL);
+			ls->p.signal.source = llhdl_create_fd(p->clock->user, ls->p.signal.source);
+			s = s->next;
+		}
+	}
 }
 
 static void transfer_process(struct llhdl_module *lm, struct verilog_process *p)
 {
 	struct enumeration *e;
-	struct verilog_assignment *a;
-	struct llhdl_node *target;
+	int bl;
 
+	/* Create the signal enumeration */
 	e = new_enumeration();
 	enumerate_process(e, p);
-
-	a = p->head;
-	while(a != NULL) {
-		target = a->target->user;
-		target->p.signal.source = make_llhdl_node(a->source, e, e->head);
-		a = a->next;
+	bl = verilog_process_blocking(p);
+	if(bl == VERILOG_BL_MIXED) {
+		fprintf(stderr, "Invalid use of blocking/nonblocking assignments in process\n");
+		exit(EXIT_FAILURE);
 	}
+	if(bl == VERILOG_BL_BLOCKING)
+		enumerate_xref(e);
+
+	/* Run the process to generate the BDD */
+	/* TODO */
+	
+	/* If the process is clocked, insert registers on all outputs */
+	register_process(p, e);
 
 	free_enumeration(e);
 }

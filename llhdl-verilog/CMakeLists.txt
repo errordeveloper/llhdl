@@ -10,6 +10,6 @@ add_custom_command(
 	DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/parser.y
 )
 
-add_executable(llhdl-verilog main.c verilog.c scanner.c parser.c)
+add_executable(llhdl-verilog main.c verilog.c scanner.c parser.c transform.c)
 target_link_libraries(llhdl-verilog banner llhdl)
 install(TARGETS llhdl-verilog DESTINATION bin)
