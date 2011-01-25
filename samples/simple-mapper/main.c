@@ -168,6 +168,7 @@ static char *iosuffix(const char *base)
 
 struct sm_objects {
 	struct llhdl_module *module;
+	struct llhdl_node *clock;
 	struct netlist_iop_manager *netlist_iop;
 	struct netlist_manager *netlist;
 	struct netlist_sym_store *symbols;
@@ -203,6 +204,20 @@ static struct netlist_instance *map_expr(struct sm_objects *obj, struct llhdl_no
 			return obj->vcc;
 		else
 			return obj->gnd;
+	}
+	if(n->type == LLHDL_NODE_FD) {
+		struct netlist_instance *d_map;
+		struct netlist_instance *fd;
+		struct netlist_net *d_net;
+		
+		d_map = map_expr(obj, n->p.fd.data);
+		fd = netlist_m_instantiate(obj->netlist, &netlist_xilprims[NETLIST_XIL_FD]);
+		d_net = netlist_m_create_net(obj->netlist);
+		netlist_add_branch(d_net, fd, 0, NETLIST_XIL_FD_D);
+		netlist_add_branch(d_net, d_map, 1, 0);
+		assert(n->p.fd.clock == obj->clock);
+		netlist_add_branch(resolve_signal(obj, n->p.fd.clock), fd, 0, NETLIST_XIL_FD_C);
+		return fd;
 	}
 	
 	ni = count_lut_inputs(n);
@@ -282,6 +297,23 @@ int main(int argc, char *argv[])
 	obj.vcc = netlist_m_instantiate(obj.netlist, &netlist_xilprims[NETLIST_XIL_VCC]);
 	obj.gnd = netlist_m_instantiate(obj.netlist, &netlist_xilprims[NETLIST_XIL_GND]);
 
+	/* Find the clock */
+	obj.clock = NULL;
+	n = obj.module->head;
+	while(n != NULL) {
+		assert(n->type == LLHDL_NODE_SIGNAL);
+		if((n->p.signal.source != NULL) && (n->p.signal.source->type == LLHDL_NODE_FD)) {
+			if(obj.clock == NULL) {
+				assert(n->p.signal.source->p.fd.clock->type == LLHDL_NODE_SIGNAL);
+				obj.clock = n->p.signal.source->p.fd.clock;
+			} else if(obj.clock != n->p.signal.source->p.fd.clock) {
+				fprintf(stderr, "Multi-clock designs are not supported by simple-mapper\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+		n = n->p.signal.next;
+	}
+
 	/* Create signals */
 	n = obj.module->head;
 	while(n != NULL) {
@@ -291,6 +323,8 @@ int main(int argc, char *argv[])
 		sym->user = net;
 		if(n->p.signal.type != LLHDL_SIGNAL_INTERNAL) {
 			int isout;
+			int buf_type;
+			int buf_port_fabric, buf_port_pin;
 			char *ioname;
 			struct netlist_instance *iobuf;
 			struct netlist_net *ionet;
@@ -298,22 +332,37 @@ int main(int argc, char *argv[])
 			struct netlist_instance *ioport;
 
 			isout = n->p.signal.type == LLHDL_SIGNAL_PORT_OUT;
+			if(n == obj.clock) {
+				assert(!isout);
+				buf_type = NETLIST_XIL_BUFGP;
+				buf_port_fabric = NETLIST_XIL_BUFGP_O;
+				buf_port_pin = NETLIST_XIL_BUFGP_I;
+			} else if(isout) {
+				buf_type = NETLIST_XIL_OBUF;
+				buf_port_fabric = NETLIST_XIL_OBUF_I;
+				buf_port_pin = NETLIST_XIL_OBUF_O;
+			} else {
+				buf_type = NETLIST_XIL_IBUF;
+				buf_port_fabric = NETLIST_XIL_IBUF_O;
+				buf_port_pin = NETLIST_XIL_IBUF_I;
+			}
 
-			/* I/O buffer insertion */
-			iobuf = netlist_m_instantiate(obj.netlist,
-				&netlist_xilprims[isout ? NETLIST_XIL_OBUF : NETLIST_XIL_IBUF]);
+			/* I/O and clock buffer insertion */
+			iobuf = netlist_m_instantiate(obj.netlist, &netlist_xilprims[buf_type]);
 			ionet = netlist_m_create_net(obj.netlist);
 			ioname = iosuffix(n->p.signal.name);
 			sym = netlist_sym_add(obj.symbols, ionet->uid, 'N', ioname);
 			sym->user = ionet;
 			free(ioname);
-			netlist_add_branch(ionet, iobuf, !isout, isout ? NETLIST_XIL_OBUF_I : NETLIST_XIL_IBUF_O);
+			netlist_add_branch(ionet, iobuf, !isout, buf_port_fabric);
 
 			/* Create I/O port and connect to buffer */
-			ioprim = netlist_create_io_primitive(obj.netlist_iop, isout ? NETLIST_PRIMITIVE_PORT_OUT : NETLIST_PRIMITIVE_PORT_IN, n->p.signal.name);
+			ioprim = netlist_create_io_primitive(obj.netlist_iop, 
+				isout ? NETLIST_PRIMITIVE_PORT_OUT : NETLIST_PRIMITIVE_PORT_IN,
+				n->p.signal.name);
 			ioport = netlist_m_instantiate(obj.netlist, ioprim);
 			netlist_add_branch(net, ioport, !isout, 0);
-			netlist_add_branch(net, iobuf, isout, isout ? NETLIST_XIL_OBUF_O : NETLIST_XIL_IBUF_I);
+			netlist_add_branch(net, iobuf, isout, buf_port_pin);
 		}
 		n = n->p.signal.next;
 	}

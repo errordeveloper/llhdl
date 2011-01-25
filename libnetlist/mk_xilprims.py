@@ -18,6 +18,18 @@ primitives = [
 		outputs = [(1, "O")]
 	),
 	Primitive(
+		name = "BUFGP",
+		attributes = [],
+		inputs = [(1, "I")],
+		outputs = [(1, "O")]
+	),
+	Primitive(
+		name = "FD",
+		attributes = [],
+		inputs = [(1, "C"), (1, "D")],
+		outputs = [(1, "Q")]
+	),
+	Primitive(
 		name = "FDE",
 		attributes = [],
 		inputs = [(1, "C"), (1, "CE"), (1, "D")],
