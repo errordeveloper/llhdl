@@ -38,6 +38,7 @@ struct enumerated_signal {
 
 struct enumeration {
 	struct enumerated_signal *ihead;
+	int ocount;
 	struct enumerated_signal *ohead;
 };
 
@@ -48,6 +49,7 @@ static struct enumeration *new_enumeration()
 	e = malloc(sizeof(struct enumeration));
 	assert(e != NULL);
 	e->ihead = NULL;
+	e->ocount = 0;
 	e->ohead = NULL;
 	return e;
 }
@@ -92,7 +94,7 @@ static void add_enumeration(struct enumeration *e, struct verilog_signal *orig, 
 	new = malloc(sizeof(struct enumerated_signal));
 	assert(new != NULL);
 	new->orig = orig;
-	new->value = 0;
+	new->value = -1;
 	new->xref = NULL;
 	if(input) {
 		new->next = e->ihead;
@@ -100,6 +102,7 @@ static void add_enumeration(struct enumeration *e, struct verilog_signal *orig, 
 	} else {
 		new->next = e->ohead;
 		e->ohead = new;
+		e->ocount++;
 	}
 }
 
@@ -197,29 +200,92 @@ static int evaluate_node(struct verilog_node *n, struct enumeration *e)
 	}
 }
 
-/*struct llhdl_node *make_llhdl_node(struct verilog_node *n, struct enumeration *e, struct enumerated_signal *s)
+static void run_statements(struct verilog_statement *s, struct enumeration *e)
 {
+	struct enumerated_signal *target;
+
+	while(s != NULL) {
+		switch(s->type) {
+			case VERILOG_STATEMENT_ASSIGNMENT:
+				target = find_signal_in_enumeration(e, s->p.assignment.target, 0);
+				assert(target != NULL);
+				target->value = evaluate_node(s->p.assignment.source, e);
+				break;
+			case VERILOG_STATEMENT_CONDITION:
+				if(evaluate_node(s->p.condition.condition, e))
+					run_statements(s->p.condition.positive, e);
+				else
+					run_statements(s->p.condition.negative, e);
+				break;
+			default:
+				assert(0);
+				break;
+		}
+		s = s->next;
+	}
+}
+
+static void clear_outputs(struct enumeration *e)
+{
+	struct enumerated_signal *s;
+	
+	s = e->ohead;
+	while(s != NULL) {
+		s->value = -1;
+		s = s->next;
+	}
+}
+
+static void run_process(struct verilog_process *p, struct enumeration *e)
+{
+	clear_outputs(e);
+	run_statements(p->head, e);
+}
+
+struct llhdl_node **make_llhdl_nodes(struct verilog_process *p, struct enumeration *e, struct enumerated_signal *s)
+{
+	struct llhdl_node **ret;
+	struct enumerated_signal *os;
+	int i;
+	
+	ret = malloc(sizeof(void *)*e->ocount);
+	assert(ret != NULL);
+	
 	if(s == NULL) {
-		int v;
-		
-		v = evaluate_node(n, e);
-		return llhdl_create_boolean(v);
+		run_process(p, e);
+		os = e->ohead;
+		for(i=0;i<e->ocount;i++) {
+			assert(os != NULL);
+			assert(os->value != -1);
+			ret[i] = llhdl_create_boolean(os->value);
+			os = os->next;
+		}
+		assert(os == NULL);
 	} else {
-		struct llhdl_node *sel, *neg, *pos;
+		struct llhdl_node *sel;
+		struct llhdl_node **neg, **pos;
 
 		sel = s->orig->user;
 		s->value = 0;
-		neg = make_llhdl_node(n, e, s->next);
+		neg = make_llhdl_nodes(p, e, s->next);
 		s->value = 1;
-		pos = make_llhdl_node(n, e, s->next);
-		if((neg->type == LLHDL_NODE_BOOLEAN) && (pos->type == LLHDL_NODE_BOOLEAN)
-		  && (neg->p.boolean.value == pos->p.boolean.value)) {
-			llhdl_free_node(neg);
-			return pos;
+		pos = make_llhdl_nodes(p, e, s->next);
+		
+		for(i=0;i<e->ocount;i++) {
+			/* TODO: reduce further */
+			if((neg[i]->type == LLHDL_NODE_BOOLEAN) && (pos[i]->type == LLHDL_NODE_BOOLEAN)
+			  && (neg[i]->p.boolean.value == pos[i]->p.boolean.value)) {
+				llhdl_free_node(neg[i]);
+				ret[i] = pos[i];
+			} else
+				ret[i] = llhdl_create_mux(sel, neg[i], pos[i]);
 		}
-		return llhdl_create_mux(sel, neg, pos);
+		free(neg);
+		free(pos);
 	}
-}*/
+	
+	return ret;
+}
 
 static void register_process(struct verilog_process *p, struct enumeration *e)
 {
@@ -242,6 +308,10 @@ static void transfer_process(struct llhdl_module *lm, struct verilog_process *p)
 {
 	struct enumeration *e;
 	int bl;
+	struct llhdl_node **nodes;
+	int i;
+	struct enumerated_signal *s;
+	struct llhdl_node *target;
 
 	/* Create the signal enumeration */
 	e = new_enumeration();
@@ -254,8 +324,18 @@ static void transfer_process(struct llhdl_module *lm, struct verilog_process *p)
 	if(bl == VERILOG_BL_BLOCKING)
 		enumerate_xref(e);
 
-	/* Run the process to generate the BDD */
-	/* TODO */
+	/* Generate the BDDs */
+	nodes = make_llhdl_nodes(p, e, e->ihead);
+	i = 0;
+	s = e->ohead;
+	while(s != NULL) {
+		target = s->orig->user;
+		assert(target->type == LLHDL_NODE_SIGNAL);
+		target->p.signal.source = nodes[i];
+		s = s->next;
+		i++;
+	}
+	free(nodes);
 	
 	/* If the process is clocked, insert registers on all outputs */
 	register_process(p, e);
