@@ -242,7 +242,23 @@ static void run_process(struct verilog_process *p, struct enumeration *e)
 	run_statements(p->head, e);
 }
 
-struct llhdl_node **make_llhdl_nodes(struct verilog_process *p, struct enumeration *e, struct enumerated_signal *s)
+static int simple_equiv(struct llhdl_node *n1, struct llhdl_node *n2)
+{
+	if(n1->type != n2->type)
+		return 0;
+	switch(n1->type) {
+		case LLHDL_NODE_BOOLEAN:
+			return (n1->p.boolean.value == n2->p.boolean.value);
+		case LLHDL_NODE_MUX:
+			return ((n1->p.mux.sel == n2->p.mux.sel)
+				&& simple_equiv(n1->p.mux.negative, n2->p.mux.negative)
+				&& simple_equiv(n1->p.mux.positive, n2->p.mux.positive));
+		default:
+			return 0;
+	}
+}
+
+static struct llhdl_node **make_llhdl_nodes(struct verilog_process *p, struct enumeration *e, struct enumerated_signal *s)
 {
 	struct llhdl_node **ret;
 	struct enumerated_signal *os;
@@ -272,9 +288,7 @@ struct llhdl_node **make_llhdl_nodes(struct verilog_process *p, struct enumerati
 		pos = make_llhdl_nodes(p, e, s->next);
 		
 		for(i=0;i<e->ocount;i++) {
-			/* TODO: reduce further */
-			if((neg[i]->type == LLHDL_NODE_BOOLEAN) && (pos[i]->type == LLHDL_NODE_BOOLEAN)
-			  && (neg[i]->p.boolean.value == pos[i]->p.boolean.value)) {
+			if(simple_equiv(neg[i], pos[i])) {
 				llhdl_free_node(neg[i]);
 				ret[i] = pos[i];
 			} else

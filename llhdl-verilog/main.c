@@ -22,7 +22,6 @@ int main(int argc, char *argv[])
 	vm = verilog_parse_file(argv[1]);
 	lm = llhdl_new_module();
 	
-	verilog_dump_module(0, vm);
 	transform(lm, vm);
 
 	llhdl_write_file(lm, argv[2]);
