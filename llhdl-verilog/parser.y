@@ -16,6 +16,7 @@
 
 constant(C) ::= TOK_VCON(V). {
 	C = verilog_new_constant_str(V);
+	free(V);
 }
 
 %type newsignal {struct verilog_signal *}
@@ -23,22 +24,27 @@ constant(C) ::= TOK_VCON(V). {
 
 newsignal(S) ::= TOK_REGWIRE TOK_ID(I). {
 	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_REGWIRE, I, 1, 0);
+	free(I);
 }
 
 newsignal(S) ::= TOK_OUTPUT TOK_ID(I). {
 	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_OUTPUT, I, 1, 0);
+	free(I);
 }
 
 newsignal(S) ::= TOK_INPUT TOK_ID(I). {
 	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_INPUT, I, 1, 0);
+	free(I);
 }
 
 newsignal(S) ::= TOK_OUTPUT TOK_REGWIRE TOK_ID(I). {
 	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_OUTPUT, I, 1, 0);
+	free(I);
 }
 
 newsignal(S) ::= TOK_INPUT TOK_REGWIRE TOK_ID(I). {
 	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_INPUT, I, 1, 0);
+	free(I);
 }
 
 %type signal {struct verilog_signal *}
@@ -49,6 +55,7 @@ signal(S) ::= TOK_ID(I). {
 		fprintf(stderr, "Signal not found: %s\n", I);
 		exit(EXIT_FAILURE);
 	}
+	free(I);
 }
 
 %type node {struct verilog_node *}
@@ -202,4 +209,5 @@ body ::= .
 
 module ::= TOK_MODULE TOK_ID(N) TOK_LPAREN io TOK_RPAREN TOK_SEMICOLON body TOK_ENDMODULE. {
 	verilog_set_module_name(outm, N);
+	free(N);
 }
