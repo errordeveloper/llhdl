@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <util.h>
 
 #include <netlist/net.h>
 
@@ -9,19 +10,15 @@ struct netlist_instance *netlist_instantiate(unsigned int uid, struct netlist_pr
 	struct netlist_instance *new;
 	int i;
 
-	new = malloc(sizeof(struct netlist_instance));
-	assert(new != NULL);
+	new = alloc_type(struct netlist_instance);
 	
 	new->uid = uid;
 	new->p = p;
 
 	if(p->attribute_count > 0) {
-		new->attributes = malloc(p->attribute_count*sizeof(void *));
-		assert(new->attributes);
-		for(i=0;i<p->attribute_count;i++) {
-			new->attributes[i] = strdup(p->default_attributes[i]);
-			assert(new->attributes[i] != NULL);
-		}
+		new->attributes = alloc_size(p->attribute_count*sizeof(void *));
+		for(i=0;i<p->attribute_count;i++)
+			new->attributes[i] = stralloc(p->default_attributes[i]);
 	} else
 		new->attributes = NULL;
 
@@ -59,18 +56,16 @@ void netlist_set_attribute(struct netlist_instance *inst, const char *attr, cons
 	
 	free(inst->attributes[a]);
 	if(value == NULL)
-		inst->attributes[a] = strdup(inst->p->default_attributes[a]);
+		inst->attributes[a] = stralloc(inst->p->default_attributes[a]);
 	else
-		inst->attributes[a] = strdup(value);
-	assert(inst->attributes[a] != NULL);
+		inst->attributes[a] = stralloc(value);
 }
 
 struct netlist_net *netlist_create_net(unsigned int uid)
 {
 	struct netlist_net *net;
 
-	net = malloc(sizeof(struct netlist_net));
-	assert(net != NULL);
+	net = alloc_type(struct netlist_net);
 	net->uid = uid;
 	net->head = NULL;
 	net->next = NULL;
@@ -86,8 +81,7 @@ void netlist_add_branch(struct netlist_net *net, struct netlist_instance *inst, 
 	else
 		assert(pin_index < inst->p->inputs);
 	
-	branch = malloc(sizeof(struct netlist_branch));
-	assert(branch != NULL);
+	branch = alloc_type(struct netlist_branch);
 	branch->inst = inst;
 	branch->output = output;
 	branch->pin_index = pin_index;

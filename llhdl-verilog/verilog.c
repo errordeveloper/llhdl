@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <util.h>
 
 #include "parser.h"
 #include "scanner.h"
@@ -11,8 +12,7 @@ struct verilog_constant *verilog_new_constant(int vectorsize, int sign, long lon
 {
 	struct verilog_constant *c;
 
-	c = malloc(sizeof(struct verilog_constant));
-	assert(c != NULL);
+	c = alloc_type(struct verilog_constant);
 	c->vectorsize = vectorsize;
 	c->sign = sign;
 	c->value = value;
@@ -26,8 +26,7 @@ struct verilog_constant *verilog_new_constant_str(char *str)
 	int base;
 
 	base = 0;
-	c = malloc(sizeof(struct verilog_constant));
-	assert(c != NULL);
+	c = alloc_type(struct verilog_constant);
 	q = strchr(str, '\'');
 	if(q == NULL) {
 		c->vectorsize = 32;
@@ -92,8 +91,7 @@ struct verilog_signal *verilog_new_update_signal(struct verilog_module *m, int t
 		return s;
 	}
 	len = strlen(name)+1;
-	s = malloc(sizeof(struct verilog_signal)+len);
-	assert(s != NULL);
+	s = alloc_size(sizeof(struct verilog_signal)+len);
 	s->type = type;
 	s->vectorsize = vectorsize;
 	s->sign = sign;
@@ -152,8 +150,7 @@ struct verilog_node *verilog_new_constant_node(struct verilog_constant *constant
 {
 	struct verilog_node *n;
 
-	n = malloc(sizeof(int)+sizeof(void *));
-	assert(n != NULL);
+	n = alloc_size(sizeof(int)+sizeof(void *));
 	n->type = VERILOG_NODE_CONSTANT;
 	n->branches[0] = constant;
 
@@ -164,8 +161,7 @@ struct verilog_node *verilog_new_signal_node(struct verilog_signal *signal)
 {
 	struct verilog_node *n;
 
-	n = malloc(sizeof(int)+sizeof(void *));
-	assert(n != NULL);
+	n = alloc_size(sizeof(int)+sizeof(void *));
 	n->type = VERILOG_NODE_SIGNAL;
 	n->branches[0] = signal;
 
@@ -179,8 +175,7 @@ struct verilog_node *verilog_new_op_node(int type)
 	int i;
 
 	arity = verilog_get_node_arity(type);
-	n = malloc(sizeof(int)+arity*sizeof(void *));
-	assert(n != NULL);
+	n = alloc_size(sizeof(int)+arity*sizeof(void *));
 	n->type = type;
 	for(i=0;i<arity;i++)
 		n->branches[i] = NULL;
@@ -206,8 +201,7 @@ static struct verilog_statement *alloc_base_statement(int extra, int type)
 {
 	struct verilog_statement *s;
 	
-	s = malloc(sizeof(int)+sizeof(void)+extra);
-	assert(s != NULL);
+	s = alloc_size(sizeof(int)+sizeof(void)+extra);
 	s->type = type;
 	s->next = NULL;
 	return s;
@@ -269,8 +263,7 @@ struct verilog_process *verilog_new_process(struct verilog_module *m, struct ver
 {
 	struct verilog_process *p;
 
-	p = malloc(sizeof(struct verilog_process));
-	assert(p != NULL);
+	p = alloc_type(struct verilog_process);
 	p->clock = clock;
 	p->head = head;
 	p->next = m->phead;
@@ -312,8 +305,7 @@ struct verilog_module *verilog_new_module()
 {
 	struct verilog_module *m;
 
-	m = malloc(sizeof(struct verilog_module));
-	assert(m != NULL);
+	m = alloc_type(struct verilog_module);
 	m->name = NULL;
 	m->shead = NULL;
 	m->phead = NULL;
@@ -323,7 +315,7 @@ struct verilog_module *verilog_new_module()
 void verilog_set_module_name(struct verilog_module *m, const char *name)
 {
 	free(m->name);
-	m->name = strdup(name);
+	m->name = stralloc(name);
 }
 
 void verilog_free_module(struct verilog_module *m)

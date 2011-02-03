@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <util.h>
 
 #include <banner/banner.h>
 
@@ -19,7 +20,7 @@ static char *process_line(struct netlist_sym_store *sym, char *line)
 	while(isblank(*line))
 		line++;
 	if(strncasecmp(line, "NET ", 4) != 0)
-		return strdup(line);
+		return stralloc(line);
 
 	c = line + 4;
 	while(isblank(*c))

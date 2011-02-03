@@ -1,7 +1,7 @@
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <util.h>
 
 #include "parser.h"
 #include "scanner.h"
@@ -32,8 +32,7 @@ static unsigned char *fill(struct scanner *s, unsigned char *cursor)
 			s->lim -= cnt;
 		}
 		if((s->top - s->lim) < BSIZE) {
-			buf = malloc((s->lim - s->bot) + BSIZE);
-			assert(buf != NULL);
+			buf = alloc_size((s->lim - s->bot) + BSIZE);
 			memcpy(buf, s->tok, s->lim - s->tok);
 			s->tok = buf;
 			s->ptr = &buf[s->ptr - s->bot];
@@ -57,8 +56,7 @@ struct scanner *scanner_new(FILE *fd)
 {
 	struct scanner *s;
 	
-	s = malloc(sizeof(struct scanner));
-	assert(s != NULL);
+	s = alloc_type(struct scanner);
 	
 	s->fd = fd;
 	s->bot = NULL;
@@ -187,8 +185,7 @@ char *scanner_get_token(struct scanner *s)
 	char *ret;
 
 	len = s->cur - s->tok;
-	ret = malloc(len+1);
-	assert(ret != NULL);
+	ret = alloc_size(len+1);
 	memcpy(ret, s->tok, len);
 	ret[len] = 0;
 	return ret;

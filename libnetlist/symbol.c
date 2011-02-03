@@ -1,8 +1,8 @@
-#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <util.h>
 
 #include <netlist/symbol.h>
 
@@ -10,8 +10,7 @@ struct netlist_sym_store *netlist_sym_newstore()
 {
 	struct netlist_sym_store *store;
 
-	store = malloc(sizeof(struct netlist_sym_store));
-	assert(store != NULL);
+	store = alloc_type(struct netlist_sym_store);
 	store->head = NULL;
 	return store;
 }
@@ -35,8 +34,7 @@ struct netlist_sym *netlist_sym_add(struct netlist_sym_store *store, unsigned in
 	struct netlist_sym *s;
 
 	len = strlen(name);
-	s = malloc(sizeof(struct netlist_sym)+len+1);
-	assert(s != NULL);
+	s = alloc_size(sizeof(struct netlist_sym)+len+1);
 	s->next = store->head;
 	s->user = NULL;
 	s->uid = uid;
@@ -95,7 +93,10 @@ void netlist_sym_to_file(struct netlist_sym_store *store, const char *filename)
 	}
 	netlist_sym_to_fd(store, fd);
 	r = fclose(fd);
-	assert(r == 0);
+	if(r != 0) {
+		perror("netlist_sym_to_file");
+		exit(EXIT_FAILURE);
+	}
 }
 
 void netlist_sym_from_fd(struct netlist_sym_store *store, FILE *fd)
@@ -108,7 +109,10 @@ void netlist_sym_from_fd(struct netlist_sym_store *store, FILE *fd)
 	while(1) {
 		n = fscanf(fd, "%x %c %as", &uid, &type, &name);
 		if(n != 3) {
-			assert(feof(fd));
+			if(!feof(fd)) {
+				perror("netlist_sym_from_fd");
+				exit(EXIT_FAILURE);
+			}
 			break;
 		}
 		netlist_sym_add(store, uid, type, name);

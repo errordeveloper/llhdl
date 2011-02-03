@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <util.h>
 
 #include <llhdl/structure.h>
 
@@ -46,8 +47,7 @@ static struct enumeration *new_enumeration()
 {
 	struct enumeration *e;
 
-	e = malloc(sizeof(struct enumeration));
-	assert(e != NULL);
+	e = alloc_type(struct enumeration);
 	e->ihead = NULL;
 	e->ocount = 0;
 	e->ohead = NULL;
@@ -91,8 +91,7 @@ static void add_enumeration(struct enumeration *e, struct verilog_signal *orig, 
 	
 	if(find_signal_in_enumeration(e, orig, input) != NULL)
 		return;
-	new = malloc(sizeof(struct enumerated_signal));
-	assert(new != NULL);
+	new = alloc_type(struct enumerated_signal);
 	new->orig = orig;
 	new->value = -1;
 	new->xref = NULL;
@@ -264,8 +263,7 @@ static struct llhdl_node **make_llhdl_nodes(struct verilog_process *p, struct en
 	struct enumerated_signal *os;
 	int i;
 	
-	ret = malloc(sizeof(void *)*e->ocount);
-	assert(ret != NULL);
+	ret = alloc_size(sizeof(void *)*e->ocount);
 	
 	if(s == NULL) {
 		run_process(p, e);

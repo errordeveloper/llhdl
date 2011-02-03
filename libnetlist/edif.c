@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <util.h>
 
 #include <netlist/net.h>
 #include <netlist/manager.h>
@@ -30,8 +31,7 @@ static struct primitive_list *build_primitive_list(struct netlist_instance *inst
 	l = NULL;
 	while(inst != NULL) {
 		if(!in_primitive_list(l, inst->p)) {
-			new = malloc(sizeof(struct primitive_list));
-			assert(new != NULL);
+			new = alloc_type(struct primitive_list);
 			new->p = inst->p;
 			new->next = l;
 			l = new;
@@ -252,5 +252,8 @@ void netlist_m_edif_file(struct netlist_manager *m, const char *filename, struct
 	}
 	netlist_m_edif_fd(m, fd, param);
 	r = fclose(fd);
-	assert(r == 0);
+	if(r != 0) {
+		perror("netlist_m_edif_file");
+		exit(EXIT_FAILURE);
+	}
 }

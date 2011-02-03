@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <util.h>
 
 #include <netlist/net.h>
 #include <netlist/io.h>
@@ -10,8 +11,7 @@ static struct netlist_primitive *create_io_primitive(int type, const char *name)
 	struct netlist_primitive *p;
 	char **name_list;
 
-	p = malloc(sizeof(struct netlist_primitive));
-	assert(p != NULL);
+	p = alloc_type(struct netlist_primitive);
 
 	p->type = type;
 	p->name = type == NETLIST_PRIMITIVE_PORT_IN ? "INPUT_PORT" : "OUTPUT_PORT";
@@ -19,10 +19,8 @@ static struct netlist_primitive *create_io_primitive(int type, const char *name)
 	p->attribute_names = NULL;
 	p->default_attributes = NULL;
 
-	name_list = malloc(sizeof(void *));
-	assert(name_list != NULL);
-	*name_list = strdup(name);
-	assert(*name_list != NULL);
+	name_list = alloc_type(char *);
+	*name_list = stralloc(name);
 
 	switch(type) {
 		case NETLIST_PRIMITIVE_PORT_IN:
@@ -62,8 +60,7 @@ struct netlist_iop_manager *netlist_create_iop_manager()
 {
 	struct netlist_iop_manager *m;
 
-	m = malloc(sizeof(struct netlist_iop_manager));
-	assert(m != NULL);
+	m = alloc_type(struct netlist_iop_manager);
 	m->head = NULL;
 	return m;
 }
@@ -88,7 +85,7 @@ struct netlist_primitive *netlist_create_io_primitive(struct netlist_iop_manager
 	struct netlist_iop_element *e;
 
 	p = create_io_primitive(type, name);
-	e = malloc(sizeof(struct netlist_iop_element));
+	e = alloc_type(struct netlist_iop_element);
 	e->p = p;
 	e->next = m->head;
 	m->head = e;

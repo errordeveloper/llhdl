@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <util.h>
 
 #include <llhdl/structure.h>
 
@@ -9,8 +10,7 @@ struct llhdl_module *llhdl_new_module()
 {
 	struct llhdl_module *m;
 
-	m = malloc(sizeof(struct llhdl_module));
-	assert(m != NULL);
+	m = alloc_type(struct llhdl_module);
 	m->name = NULL;
 	m->head = NULL;
 
@@ -48,18 +48,15 @@ void llhdl_set_module_name(struct llhdl_module *m, const char *name)
 	free(m->name);
 	if(name == NULL)
 		m->name = NULL;
-	else {
-		m->name = strdup(name);
-		assert(m->name != NULL);
-	}
+	else
+		m->name = stralloc(name);
 }
 
 static struct llhdl_node *alloc_base_node(int payload_size, int type)
 {
 	struct llhdl_node *n;
 
-	n = malloc(sizeof(int)+payload_size);
-	assert(n != NULL);
+	n = alloc_size(sizeof(int)+payload_size);
 	n->type = type;
 	return n;
 }

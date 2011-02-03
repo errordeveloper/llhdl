@@ -1,6 +1,6 @@
-#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <util.h>
 
 #include <netlist/net.h>
 #include <netlist/manager.h>
@@ -9,8 +9,7 @@ struct netlist_manager *netlist_m_new()
 {
 	struct netlist_manager *m;
 
-	m = malloc(sizeof(struct netlist_manager));
-	assert(m != NULL);
+	m = alloc_type(struct netlist_manager);
 	m->next_uid = 0;
 	m->ihead = NULL;
 	m->nhead = NULL;
