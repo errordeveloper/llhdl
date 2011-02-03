@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <gmp.h>
 
 #include <llhdl/structure.h>
 #include <llhdl/exchange.h>
@@ -139,6 +140,7 @@ static struct llhdl_node *parse_operator(struct llhdl_module *m, char *op, char 
 			return llhdl_create_fd(p1, p2);
 		case OP_SLICE: {
 			struct llhdl_node *n;
+			int start, end;
 			
 			p1 = parse_expr(m, saveptr);
 			p2 = parse_expr(m, saveptr);
@@ -149,7 +151,15 @@ static struct llhdl_node *parse_operator(struct llhdl_module *m, char *op, char 
 				exit(EXIT_FAILURE);
 				return NULL;
 			}
-			n = llhdl_create_slice(p1, p2->p.integer.value, p3->p.integer.value);
+			if(mpz_fits_slong_p(p2->p.integer.value))
+				start = mpz_get_si(p2->p.integer.value);
+			else
+				start = -1;
+			if(mpz_fits_slong_p(p3->p.integer.value))
+				end = mpz_get_si(p3->p.integer.value);
+			else
+				end = -1;
+			n = llhdl_create_slice(p1, start, end);
 			llhdl_free_node(p2);
 			llhdl_free_node(p3);
 			return n;
@@ -203,15 +213,16 @@ static struct llhdl_node *parse_expr(struct llhdl_module *m, char **saveptr)
 			token++;
 			return parse_operator(m, token, saveptr);
 		case '\'': {
-			char *c;
-			long long int v;
+			mpz_t v;
+			struct llhdl_node *n;
 			token++;
-			v = strtoll(token, &c, 0);
-			if(*c != 0) {
+			if(mpz_init_set_str(v, token, 0) != 0) {
 				fprintf(stderr, "Invalid integer value: %s\n", token);
 				exit(EXIT_FAILURE);
 			}
-			return llhdl_create_integer(v);
+			n = llhdl_create_integer(v);
+			mpz_clear(v);
+			return n;
 		}
 		default: {
 			struct llhdl_node *n;
@@ -359,7 +370,8 @@ static void write_expr(FILE *fd, struct llhdl_node *n)
 			write_expr(fd, n->p.fd.data);
 			break;
 		case LLHDL_NODE_INTEGER:
-			fprintf(fd, "'%lld", n->p.integer.value);
+			fprintf(fd, "'");
+			mpz_out_str(fd, 10, n->p.integer.value);
 			break;
 		case LLHDL_NODE_SLICE:
 			fprintf(fd, "#slice");

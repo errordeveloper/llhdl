@@ -1,6 +1,8 @@
 #ifndef __LLHDL_STRUCTURE_H
 #define __LLHDL_STRUCTURE_H
 
+#include <gmp.h>
+
 struct llhdl_node;
 struct llhdl_module;
 
@@ -35,7 +37,7 @@ struct llhdl_node_fd {
 };
 
 struct llhdl_node_integer {
-	long long int value;
+	mpz_t value;
 };
 
 struct llhdl_node_slice {
@@ -106,7 +108,7 @@ struct llhdl_node *llhdl_create_boolean(int value);
 struct llhdl_node *llhdl_create_signal(struct llhdl_module *m, int type, int sign, const char *name, int vectorsize);
 struct llhdl_node *llhdl_create_mux(struct llhdl_node *sel, struct llhdl_node *negative, struct llhdl_node *positive);
 struct llhdl_node *llhdl_create_fd(struct llhdl_node *clock, struct llhdl_node *data);
-struct llhdl_node *llhdl_create_integer(long long int value);
+struct llhdl_node *llhdl_create_integer(mpz_t value);
 struct llhdl_node *llhdl_create_slice(struct llhdl_node *source, int start, int end);
 struct llhdl_node *llhdl_create_cat(struct llhdl_node *msb, struct llhdl_node *lsb);
 struct llhdl_node *llhdl_create_sign(struct llhdl_node *source, int sign);

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <util.h>
+#include <gmp.h>
 
 #include <llhdl/structure.h>
 
@@ -108,12 +109,12 @@ struct llhdl_node *llhdl_create_fd(struct llhdl_node *clock, struct llhdl_node *
 	return n;
 }
 
-struct llhdl_node *llhdl_create_integer(long long int value)
+struct llhdl_node *llhdl_create_integer(mpz_t value)
 {
 	struct llhdl_node *n;
 
 	n = alloc_base_node(sizeof(struct llhdl_node_integer), LLHDL_NODE_INTEGER);
-	n->p.integer.value = value;
+	mpz_init_set(n->p.integer.value, value);
 	return n;
 }
 
@@ -121,6 +122,10 @@ struct llhdl_node *llhdl_create_slice(struct llhdl_node *source, int start, int 
 {
 	struct llhdl_node *n;
 
+	if((start < 0) || (end < 0) || (start > end)) {
+		fprintf(stderr, "Invalid bounds of LLHDL slice\n");
+		exit(EXIT_FAILURE);
+	}
 	n = alloc_base_node(sizeof(struct llhdl_node_slice), LLHDL_NODE_SLICE);
 	n->p.slice.source = source;
 	n->p.slice.start = start;
@@ -178,6 +183,7 @@ void llhdl_free_node(struct llhdl_node *n)
 			llhdl_free_node(n->p.fd.data);
 			break;
 		case LLHDL_NODE_INTEGER:
+			mpz_clear(n->p.integer.value);
 			break;
 		case LLHDL_NODE_SLICE:
 			llhdl_free_node(n->p.slice.source);
