@@ -3,19 +3,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <util.h>
+#include <gmp.h>
 
 #include "parser.h"
 #include "scanner.h"
 #include "verilog.h"
 
-struct verilog_constant *verilog_new_constant(int vectorsize, int sign, long long int value)
+struct verilog_constant *verilog_new_constant(int vectorsize, int sign, mpz_t value)
 {
 	struct verilog_constant *c;
 
 	c = alloc_type(struct verilog_constant);
 	c->vectorsize = vectorsize;
 	c->sign = sign;
-	c->value = value;
+	mpz_init_set(c->value, value);
 	return c;
 }
 
@@ -56,12 +57,13 @@ struct verilog_constant *verilog_new_constant_str(char *str)
 		}
 		str = q+1;
 	}
-	c->value = strtoll(str, NULL, base);
+	mpz_init_set_str(c->value, str, base);
 	return c;
 }
 
 void verilog_free_constant(struct verilog_constant *c)
 {
+	mpz_clear(c->value);
 	free(c);
 }
 
@@ -193,7 +195,7 @@ void verilog_free_node(struct verilog_node *n)
 			verilog_free_node(n->branches[i]);
 	}
 	if(n->type == VERILOG_NODE_CONSTANT)
-		free(n->branches[0]);
+		verilog_free_constant(n->branches[0]);
 	free(n);
 }
 
@@ -411,7 +413,9 @@ void verilog_dump_node(struct verilog_node *n)
 		case VERILOG_NODE_CONSTANT: {
 			struct verilog_constant *c;
 			c = n->branches[0];
-			printf("(%lld<%d%s>)", c->value, c->vectorsize, c->sign ? "s":"");
+			printf("(");
+			mpz_out_str(stdout, 10, c->value);
+			printf("<%d%s>)", c->vectorsize, c->sign ? "s":"");
 			break;
 		}
 		case VERILOG_NODE_SIGNAL: {

@@ -1,10 +1,12 @@
 #ifndef __VERILOG_H
 #define __VERILOG_H
 
+#include <gmp.h>
+
 struct verilog_constant {
 	int vectorsize;
 	int sign;
-	long long int value;
+	mpz_t value;
 };
 
 enum {
@@ -80,7 +82,7 @@ struct verilog_module {
 };
 
 /* structure manipulation */
-struct verilog_constant *verilog_new_constant(int vectorsize, int sign, long long int value);
+struct verilog_constant *verilog_new_constant(int vectorsize, int sign, mpz_t value);
 struct verilog_constant *verilog_new_constant_str(char *str);
 void verilog_free_constant(struct verilog_constant *c);
 

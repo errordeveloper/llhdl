@@ -175,7 +175,7 @@ static int evaluate_node(struct verilog_node *n, struct enumeration *e)
 
 	switch(n->type) {
 		case VERILOG_NODE_CONSTANT:
-			return ((struct verilog_constant *)n->branches[0])->value;
+			return mpz_get_si(((struct verilog_constant *)n->branches[0])->value); // XXX
 		case VERILOG_NODE_SIGNAL: {
 			struct enumerated_signal *s;
 			s = find_signal_in_enumeration(e, n->branches[0], 1);
