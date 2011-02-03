@@ -203,7 +203,7 @@ static struct verilog_statement *alloc_base_statement(int extra, int type)
 {
 	struct verilog_statement *s;
 	
-	s = alloc_size(sizeof(int)+sizeof(void)+extra);
+	s = alloc_size(sizeof(int)+sizeof(void *)+extra);
 	s->type = type;
 	s->next = NULL;
 	return s;
