@@ -22,8 +22,12 @@ include_directories("${PROJECT_BINARY_DIR}")
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
+# system libraries
+
 find_package(GMP REQUIRED)
 include_directories("${GMP_INCLUDES}")
+
+# subdirectories
 
 add_subdirectory(libbanner)
 add_subdirectory(libnetlist)
@@ -32,3 +36,17 @@ add_subdirectory(libllhdl)
 add_subdirectory(samples)
 add_subdirectory(llhdl-resolveucf)
 add_subdirectory(llhdl-verilog)
+
+# packaging
+
+include(InstallRequiredSystemLibraries)
+set(CPACK_GENERATOR "RPM")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "An experimental logic synthesis and manipulation infrastructure for FPGAs")
+set(CPACK_PACKAGE_VENDOR "Sebastien Bourdeauducq")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${PROJECT_SOURCE_DIR}/README")
+set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/COPYING")
+set(CPACK_PACKAGE_VERSION_MAJOR "${LLHDL_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${LLHDL_VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH "${LLHDL_VERSION_PATCH}")
+include(CPack)
+
