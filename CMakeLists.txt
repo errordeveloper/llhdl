@@ -22,6 +22,9 @@ include_directories("${PROJECT_BINARY_DIR}")
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
+find_package(GMP REQUIRED)
+include_directories("${GMP_INCLUDES}")
+
 add_subdirectory(libbanner)
 add_subdirectory(libnetlist)
 add_subdirectory(libllhdl)
