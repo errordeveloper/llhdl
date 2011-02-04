@@ -30,12 +30,14 @@ include_directories("${GMP_INCLUDES}")
 # subdirectories
 
 add_subdirectory(libbanner)
-add_subdirectory(libnetlist)
 add_subdirectory(libllhdl)
+add_subdirectory(libtilm)
+add_subdirectory(libnetlist)
 
-add_subdirectory(samples)
-add_subdirectory(llhdl-resolveucf)
 add_subdirectory(llhdl-verilog)
+add_subdirectory(llhdl-spartan6-map)
+add_subdirectory(llhdl-resolveucf)
+add_subdirectory(samples)
 
 # packaging
 
