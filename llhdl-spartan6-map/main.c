@@ -5,7 +5,10 @@
 #include <util.h>
 
 #include <banner/banner.h>
+
 #include <tilm/tilm.h>
+
+#include "flow.h"
 
 static const char *parts[] = {
 	"xc6slx45-fgg484-2",
@@ -66,9 +69,7 @@ static void help()
 
 static const char *part = default_part;
 static int lutmapper = TILM_DEFAULT;
-static const char *input_lhd;
-static const char *output_edf;
-static const char *output_sym;
+static void *lutmapper_extra_param = NULL;
 
 int main(int argc, char *argv[])
 {
@@ -105,9 +106,9 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Exactly 3 file names must be passed. Use -h for help.\n");
 		exit(EXIT_FAILURE);
 	}
-	input_lhd = argv[optind];
-	output_edf = argv[optind+1];
-	output_sym = argv[optind+2];
+
+	run_flow(argv[optind], argv[optind+1], argv[optind+2], part, lutmapper, lutmapper_extra_param);
+
 	return 0;
 }
 
