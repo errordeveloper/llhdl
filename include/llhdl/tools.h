@@ -16,6 +16,9 @@ enum {
 	LLHDL_PURE_ARITH
 };
 
+int llhdl_belongs_in_pure(int purity, int type);
+void llhdl_update_purity(int *previous, int new);
+void llhdl_update_purity_node(int *previous, int type);
 int llhdl_is_pure(struct llhdl_node *n);
 
 #endif /* __LLHDL_TOOLS_H */

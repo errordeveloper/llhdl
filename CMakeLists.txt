@@ -31,6 +31,7 @@ include_directories("${GMP_INCLUDES}")
 
 add_subdirectory(libbanner)
 add_subdirectory(libllhdl)
+add_subdirectory(libbd)
 add_subdirectory(libtilm)
 add_subdirectory(libnetlist)
 
