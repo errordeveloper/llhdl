@@ -16,6 +16,8 @@
 #include <llhdl/exchange.h>
 #include <llhdl/tools.h>
 
+#include <bd/bd.h>
+
 #include <tilm/tilm.h>
 
 struct flow_sc {
@@ -217,6 +219,29 @@ static void map_bdd(struct tilm_param *p, struct llhdl_node *n)
 	free(result);
 }
 
+static void map_fd(struct flow_sc *sc, struct llhdl_node *n)
+{
+	struct netlist_net *net;
+	struct netlist_instance *inst;
+	
+	net = resolve_signal(sc, n);
+	n = n->p.signal.source;
+	while(n->type == LLHDL_NODE_FD) {
+		inst = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_FD]);
+		netlist_add_branch(net, inst, 1, NETLIST_XIL_FD_Q);
+		netlist_add_branch(resolve_signal(sc, n->p.fd.clock), inst, 0, NETLIST_XIL_FD_C);
+		
+		if(n->p.fd.data->type == LLHDL_NODE_FD) {
+			net = netlist_m_create_net(sc->netlist);
+			netlist_add_branch(net, inst, 0, NETLIST_XIL_FD_D);
+		} else
+			/* Last data must be a signal */
+			netlist_add_branch(resolve_signal(sc, n->p.fd.data), inst, 0, NETLIST_XIL_FD_D);
+		
+		n = n->p.fd.data;
+	}
+}
+
 static struct netlist_instance *get_gnd_vcc(struct flow_sc *sc, int v)
 {
 	if(v) {
@@ -256,6 +281,7 @@ static void map_logic(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_p
 				/* TODO: join nets */
 				break;
 			case LLHDL_PURE_CONSTANT:
+				/* Integers should have been broken down into booleans by de-vectorization. */
 				assert(n->p.signal.source->type == LLHDL_NODE_BOOLEAN);
 				netlist_add_branch(resolve_signal(sc, n),
 					get_gnd_vcc(sc, n->p.signal.source->p.boolean.value),
@@ -264,6 +290,12 @@ static void map_logic(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_p
 			case LLHDL_PURE_BDD:
 				map_bdd(&tilm_param, n);
 				break;
+			case LLHDL_PURE_FD:
+				map_fd(sc, n);
+				break;
+			case LLHDL_COMPOUND:
+				/* This should not happen */
+				/* fall through */
 			default:
 				assert(0);
 				break;
@@ -290,6 +322,9 @@ void run_flow(const char *input_lhd, const char *output_edf, const char *output_
 	edif_param.cell_library = "UNISIMS";
 	edif_param.part = (char *)part;
 	edif_param.manufacturer = "Xilinx";
+	
+	/* Break down the LLHDL structure */
+	bd_purify(sc.module);
 	
 	/* Find clock (we only support single clock designs atm) */
 	find_clock(&sc);
