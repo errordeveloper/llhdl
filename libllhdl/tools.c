@@ -1,7 +1,10 @@
 #include <assert.h>
+#include <gmp.h>
 
 #include <llhdl/structure.h>
 #include <llhdl/tools.h>
+
+#include <util.h>
 
 int llhdl_belongs_in_pure(int purity, int type)
 {
@@ -13,14 +16,14 @@ int llhdl_belongs_in_pure(int purity, int type)
 		case LLHDL_PURE_CONSTANT:
 			return type != LLHDL_NODE_FD;
 		case LLHDL_PURE_BDD:
-			return (type == LLHDL_NODE_MUX) || (type == LLHDL_NODE_SIGNAL) || (type == LLHDL_NODE_BOOLEAN) || (type == LLHDL_NODE_INTEGER);
+			return (type == LLHDL_NODE_MUX) || (type == LLHDL_NODE_SIGNAL) || (type == LLHDL_NODE_CONSTANT);
 		case LLHDL_PURE_FD:
 			return (type == LLHDL_NODE_FD) || (type == LLHDL_NODE_SIGNAL);
 		case LLHDL_PURE_VECTOR:
 			return (type == LLHDL_NODE_SLICE) || (type == LLHDL_NODE_CAT) || (type == LLHDL_NODE_SIGN)
-				|| (type == LLHDL_NODE_SIGNAL) || (type == LLHDL_NODE_BOOLEAN) || (type == LLHDL_NODE_INTEGER);
+				|| (type == LLHDL_NODE_SIGNAL) || (type == LLHDL_NODE_CONSTANT);
 		case LLHDL_PURE_ARITH:
-			return (type == LLHDL_NODE_ARITH) || (type == LLHDL_NODE_SIGNAL) || (type == LLHDL_NODE_BOOLEAN) || (type == LLHDL_NODE_INTEGER);
+			return (type == LLHDL_NODE_ARITH) || (type == LLHDL_NODE_SIGNAL) || (type == LLHDL_NODE_CONSTANT);
 		default:
 			assert(0);
 			return 0;
@@ -62,8 +65,7 @@ void llhdl_update_purity(int *previous, int new)
 void llhdl_update_purity_node(int *previous, int type)
 {
 	switch(type) {
-		case LLHDL_NODE_BOOLEAN:
-		case LLHDL_NODE_INTEGER:
+		case LLHDL_NODE_CONSTANT:
 			llhdl_update_purity(previous, LLHDL_PURE_CONSTANT);
 			break;
 		case LLHDL_NODE_SIGNAL:
@@ -101,8 +103,7 @@ int llhdl_is_pure(struct llhdl_node *n)
 	if(n != NULL) {
 		llhdl_update_purity_node(&purity, n->type);
 		switch(n->type) {
-			case LLHDL_NODE_BOOLEAN:
-			case LLHDL_NODE_INTEGER:
+			case LLHDL_NODE_CONSTANT:
 			case LLHDL_NODE_SIGNAL:
 				break;
 			case LLHDL_NODE_MUX:
@@ -134,3 +135,73 @@ int llhdl_is_pure(struct llhdl_node *n)
 	return purity;
 }
 
+int llhdl_compare_constants(struct llhdl_node *n1, struct llhdl_node *n2)
+{
+	assert(n1->type == LLHDL_NODE_CONSTANT);
+	assert(n2->type == LLHDL_NODE_CONSTANT);
+	return (n1->p.constant.sign == n2->p.constant.sign) 
+		&& (n1->p.constant.vectorsize == n2->p.constant.vectorsize) 
+		&& (mpz_cmp(n1->p.constant.value, n2->p.constant.value) == 0);
+}
+
+int llhdl_get_sign(struct llhdl_node *n)
+{
+	if(n == NULL) return 0;
+	switch(n->type) {
+		case LLHDL_NODE_CONSTANT:
+			return n->p.constant.sign;
+		case LLHDL_NODE_SIGNAL:
+			return n->p.signal.sign;
+		case LLHDL_NODE_MUX:
+			return llhdl_get_sign(n->p.mux.negative) && llhdl_get_sign(n->p.mux.positive);
+		case LLHDL_NODE_FD:
+			return llhdl_get_sign(n->p.fd.data);
+		case LLHDL_NODE_SLICE:
+			return llhdl_get_sign(n->p.slice.source);
+		case LLHDL_NODE_CAT:
+			return llhdl_get_sign(n->p.cat.msb) && llhdl_get_sign(n->p.cat.lsb);
+		case LLHDL_NODE_SIGN:
+			return n->p.sign.sign;
+		case LLHDL_NODE_ARITH:
+			return llhdl_get_sign(n->p.arith.a) && llhdl_get_sign(n->p.arith.b);
+		default:
+			assert(0);
+			break;
+	}
+}
+
+int llhdl_get_vectorsize(struct llhdl_node *n)
+{
+	if(n == NULL) return 0;
+	switch(n->type) {
+		case LLHDL_NODE_CONSTANT:
+			return n->p.constant.vectorsize;
+		case LLHDL_NODE_SIGNAL:
+			return n->p.signal.vectorsize;
+		case LLHDL_NODE_MUX:
+			return max(llhdl_get_vectorsize(n->p.mux.negative), llhdl_get_vectorsize(n->p.mux.positive));
+		case LLHDL_NODE_FD:
+			return llhdl_get_vectorsize(n->p.fd.data);
+		case LLHDL_NODE_SLICE:
+			return n->p.slice.end - n->p.slice.start + 1;
+		case LLHDL_NODE_CAT:
+			return llhdl_get_vectorsize(n->p.cat.msb) + llhdl_get_vectorsize(n->p.cat.lsb);
+		case LLHDL_NODE_SIGN:
+			return llhdl_get_vectorsize(n->p.sign.source);
+		case LLHDL_NODE_ARITH:
+			switch(n->p.arith.op) {
+				case LLHDL_ARITH_ADD:
+				case LLHDL_ARITH_SUB:
+					return max(llhdl_get_vectorsize(n->p.arith.a),
+						llhdl_get_vectorsize(n->p.arith.b)) + 1;
+				case LLHDL_ARITH_MUL:
+					return llhdl_get_vectorsize(n->p.arith.a) + llhdl_get_vectorsize(n->p.arith.b);
+				default:
+					assert(0);
+					break;
+			}
+		default:
+			assert(0);
+			break;
+	}
+}

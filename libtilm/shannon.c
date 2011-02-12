@@ -79,7 +79,7 @@ static void enumeration_free(struct enumeration *e)
 static void enumerate(struct enumeration *e, struct llhdl_node *n)
 {
 	switch(n->type) {
-		case LLHDL_NODE_BOOLEAN:
+		case LLHDL_NODE_CONSTANT:
 			break;
 		case LLHDL_NODE_SIGNAL:
 			enumeration_add(e, n);
@@ -111,8 +111,8 @@ static int count_remaining_variables(struct enumerated_signal *s)
 static int eval(struct enumeration *e, struct llhdl_node *n)
 {
 	switch(n->type) {
-		case LLHDL_NODE_BOOLEAN:
-			return n->p.boolean.value;
+		case LLHDL_NODE_CONSTANT:
+			return mpz_get_si(n->p.constant.value);
 		case LLHDL_NODE_SIGNAL:
 			return enumeration_get_value(e, n);
 		case LLHDL_NODE_MUX:
@@ -211,8 +211,8 @@ static void *map_level(struct map_level_param *mlp, struct enumerated_signal *s)
 static struct llhdl_node *is_identity(struct llhdl_node *n)
 {
 	if(n->type != LLHDL_NODE_MUX) return NULL;
-	if((n->p.mux.negative->type != LLHDL_NODE_BOOLEAN) ||  (n->p.mux.negative->p.boolean.value)) return NULL;
-	if((n->p.mux.positive->type != LLHDL_NODE_BOOLEAN) || !(n->p.mux.positive->p.boolean.value)) return NULL;
+	if((n->p.mux.negative->type != LLHDL_NODE_CONSTANT) ||  (mpz_get_si(n->p.mux.negative->p.constant.value))) return NULL;
+	if((n->p.mux.positive->type != LLHDL_NODE_CONSTANT) || !(mpz_get_si(n->p.mux.positive->p.constant.value))) return NULL;
 	return n->p.mux.sel;
 }
 

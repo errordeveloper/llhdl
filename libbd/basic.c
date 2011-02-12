@@ -18,8 +18,7 @@ static void purify_arc(struct purify_arc_param *p, struct llhdl_node **n, int pu
 	if(llhdl_belongs_in_pure(purity, (*n)->type)) {
 		llhdl_update_purity_node(&purity, (*n)->type);
 		switch((*n)->type) {
-			case LLHDL_NODE_BOOLEAN:
-			case LLHDL_NODE_INTEGER:
+			case LLHDL_NODE_CONSTANT:
 			case LLHDL_NODE_SIGNAL:
 				break;
 			case LLHDL_NODE_MUX:
@@ -57,8 +56,8 @@ static void purify_arc(struct purify_arc_param *p, struct llhdl_node **n, int pu
 		r = asprintf(&new_name, "%s$%d", p->name, p->rename_count);
 		if(r == -1) abort();
 		p->rename_count++;
-		/* FIXME: use correct sign and vector size */
-		*n = llhdl_create_signal(p->module, LLHDL_SIGNAL_INTERNAL, 0, new_name, 1);
+		*n = llhdl_create_signal(p->module, LLHDL_SIGNAL_INTERNAL, new_name, 
+			llhdl_get_sign(new_arc), llhdl_get_vectorsize(new_arc));
 		free(new_name);
 		
 		(*n)->p.signal.source = new_arc;

@@ -2,8 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <util.h>
+#include <gmp.h>
 
 #include <llhdl/structure.h>
+#include <llhdl/tools.h>
 
 #include "verilog.h"
 #include "transform.h"
@@ -25,7 +27,7 @@ static void transfer_signals(struct llhdl_module *lm, struct verilog_module *vm)
 
 	s = vm->shead;
 	while(s != NULL) {
-		s->user = llhdl_create_signal(lm, convert_sigtype(s->type), s->sign, s->name, s->vectorsize);
+		s->user = llhdl_create_signal(lm, convert_sigtype(s->type), s->name, s->sign, s->vectorsize);
 		s = s->next;
 	}
 }
@@ -246,8 +248,8 @@ static int simple_equiv(struct llhdl_node *n1, struct llhdl_node *n2)
 	if(n1->type != n2->type)
 		return 0;
 	switch(n1->type) {
-		case LLHDL_NODE_BOOLEAN:
-			return (n1->p.boolean.value == n2->p.boolean.value);
+		case LLHDL_NODE_CONSTANT:
+			return llhdl_compare_constants(n1, n2);
 		case LLHDL_NODE_MUX:
 			return ((n1->p.mux.sel == n2->p.mux.sel)
 				&& simple_equiv(n1->p.mux.negative, n2->p.mux.negative)
@@ -269,9 +271,13 @@ static struct llhdl_node **make_llhdl_nodes(struct verilog_process *p, struct en
 		run_process(p, e);
 		os = e->ohead;
 		for(i=0;i<e->ocount;i++) {
+			mpz_t v;
+
 			assert(os != NULL);
 			assert(os->value != -1);
-			ret[i] = llhdl_create_boolean(os->value);
+			mpz_init_set_ui(v, os->value);
+			ret[i] = llhdl_create_constant(v, 0, 1);
+			mpz_clear(v);
 			os = os->next;
 		}
 		assert(os == NULL);

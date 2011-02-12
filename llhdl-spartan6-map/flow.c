@@ -283,10 +283,11 @@ static void map_logic(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_p
 				netlist_join(resolve_signal(sc, n), resolve_signal(sc, n->p.signal.source));
 				break;
 			case LLHDL_PURE_CONSTANT:
-				/* Integers should have been broken down into booleans by de-vectorization. */
-				assert(n->p.signal.source->type == LLHDL_NODE_BOOLEAN);
+				/* Integers should have been broken down into single bits by de-vectorization. */
+				assert(n->p.signal.source->p.constant.sign == 0);
+				assert(n->p.signal.source->p.constant.vectorsize == 1);
 				netlist_add_branch(resolve_signal(sc, n),
-					get_gnd_vcc(sc, n->p.signal.source->p.boolean.value),
+					get_gnd_vcc(sc, mpz_get_si(n->p.signal.source->p.constant.value)),
 					1, 0);
 				break;
 			case LLHDL_PURE_BDD:

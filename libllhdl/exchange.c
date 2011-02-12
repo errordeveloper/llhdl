@@ -117,7 +117,45 @@ static void parse_signal(struct llhdl_module *m, char **saveptr, int type)
 	sign = 0;
 	parse_vectorsize_sign(&vectorsize_affected, &sign_affected, &vectorsize, &sign, saveptr);
 	parse_vectorsize_sign(&vectorsize_affected, &sign_affected, &vectorsize, &sign, saveptr);
-	llhdl_create_signal(m, type, sign, token, vectorsize);
+	llhdl_create_signal(m, type, token, sign, vectorsize);
+}
+
+static struct llhdl_node *parse_constant(char *t)
+{
+	int sign;
+	int vectorsize;
+	mpz_t v;
+	char *c;
+	char *value;
+	struct llhdl_node *n;
+
+	sign = 1;
+	c = strchr(t, 's');
+	if(c == NULL) {
+		sign = 0;
+		c = strchr(t, 'u');
+	}
+	
+	if(c == NULL) {
+		vectorsize = 1;
+		value = t;
+	} else {
+		*c = 0;
+		value = c + 1;
+		vectorsize = strtoul(t, &c, 0);
+		if(*c != 0) {
+			fprintf(stderr, "Invalid integer width value: %s\n", t);
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	if(mpz_init_set_str(v, value, 0) != 0) {
+		fprintf(stderr, "Invalid integer value: %s\n", value);
+		exit(EXIT_FAILURE);
+	}
+	n = llhdl_create_constant(v, sign, vectorsize);
+	mpz_clear(v);
+	return n;
 }
 
 static struct llhdl_node *parse_expr(struct llhdl_module *m, char **saveptr);
@@ -146,17 +184,16 @@ static struct llhdl_node *parse_operator(struct llhdl_module *m, char *op, char 
 			p2 = parse_expr(m, saveptr);
 			p3 = parse_expr(m, saveptr);
 			
-			if((p2->type != LLHDL_NODE_INTEGER) || (p3->type != LLHDL_NODE_INTEGER)) {
+			if((p2->type != LLHDL_NODE_CONSTANT) || (p3->type != LLHDL_NODE_CONSTANT)) {
 				fprintf(stderr, "Start and end of slice must be constant\n");
 				exit(EXIT_FAILURE);
-				return NULL;
 			}
-			if(mpz_fits_slong_p(p2->p.integer.value))
-				start = mpz_get_si(p2->p.integer.value);
+			if(mpz_fits_slong_p(p2->p.constant.value))
+				start = mpz_get_si(p2->p.constant.value);
 			else
 				start = -1;
-			if(mpz_fits_slong_p(p3->p.integer.value))
-				end = mpz_get_si(p3->p.integer.value);
+			if(mpz_fits_slong_p(p3->p.constant.value))
+				end = mpz_get_si(p3->p.constant.value);
 			else
 				end = -1;
 			n = llhdl_create_slice(p1, start, end);
@@ -205,25 +242,11 @@ static struct llhdl_node *parse_expr(struct llhdl_module *m, char **saveptr)
 	}
 	type = *token;
 	switch(type) {
-		case '0':
-			return llhdl_create_boolean(0);
-		case '1':
-			return llhdl_create_boolean(1);
+		case '0'...'9':
+			return parse_constant(token);
 		case '#':
 			token++;
 			return parse_operator(m, token, saveptr);
-		case '\'': {
-			mpz_t v;
-			struct llhdl_node *n;
-			token++;
-			if(mpz_init_set_str(v, token, 0) != 0) {
-				fprintf(stderr, "Invalid integer value: %s\n", token);
-				exit(EXIT_FAILURE);
-			}
-			n = llhdl_create_integer(v);
-			mpz_clear(v);
-			return n;
-		}
 		default: {
 			struct llhdl_node *n;
 
@@ -352,8 +375,10 @@ static void write_expr(FILE *fd, struct llhdl_node *n)
 {
 	fprintf(fd, " ");
 	switch(n->type) {
-		case LLHDL_NODE_BOOLEAN:
-			fprintf(fd, "%d", n->p.boolean.value);
+		case LLHDL_NODE_CONSTANT:
+			if(n->p.constant.sign || (n->p.constant.vectorsize != 1))
+				fprintf(fd, "%d%c", n->p.constant.sign ? 's' : 'u', n->p.constant.vectorsize);
+			mpz_out_str(fd, 10, n->p.constant.value);
 			break;
 		case LLHDL_NODE_SIGNAL:
 			fprintf(fd, "%s", n->p.signal.name);
@@ -368,10 +393,6 @@ static void write_expr(FILE *fd, struct llhdl_node *n)
 			fprintf(fd, "#fd");
 			write_expr(fd, n->p.fd.clock);
 			write_expr(fd, n->p.fd.data);
-			break;
-		case LLHDL_NODE_INTEGER:
-			fprintf(fd, "'");
-			mpz_out_str(fd, 10, n->p.integer.value);
 			break;
 		case LLHDL_NODE_SLICE:
 			fprintf(fd, "#slice");

@@ -62,16 +62,18 @@ static struct llhdl_node *alloc_base_node(int payload_size, int type)
 	return n;
 }
 
-struct llhdl_node *llhdl_create_boolean(int value)
+struct llhdl_node *llhdl_create_constant(mpz_t value, int sign, int vectorsize)
 {
 	struct llhdl_node *n;
 
-	n = alloc_base_node(sizeof(struct llhdl_node_boolean), LLHDL_NODE_BOOLEAN);
-	n->p.boolean.value = value;
+	n = alloc_base_node(sizeof(struct llhdl_node_constant), LLHDL_NODE_CONSTANT);
+	mpz_init_set(n->p.constant.value, value);
+	n->p.constant.sign = sign;
+	n->p.constant.vectorsize = vectorsize;
 	return n;
 }
 
-struct llhdl_node *llhdl_create_signal(struct llhdl_module *m, int type, int sign, const char *name, int vectorsize)
+struct llhdl_node *llhdl_create_signal(struct llhdl_module *m, int type, const char *name, int sign, int vectorsize)
 {
 	struct llhdl_node *n;
 	int len;
@@ -80,8 +82,8 @@ struct llhdl_node *llhdl_create_signal(struct llhdl_module *m, int type, int sig
 	n = alloc_base_node(sizeof(struct llhdl_node_signal)+len+1, LLHDL_NODE_SIGNAL);
 	n->p.signal.type = type;
 	n->p.signal.sign = sign;
-	n->p.signal.source = NULL;
 	n->p.signal.vectorsize = vectorsize;
+	n->p.signal.source = NULL;
 	n->p.signal.next = m->head;
 	memcpy(n->p.signal.name, name, len+1);
 	m->head = n;
@@ -106,15 +108,6 @@ struct llhdl_node *llhdl_create_fd(struct llhdl_node *clock, struct llhdl_node *
 	n = alloc_base_node(sizeof(struct llhdl_node_fd), LLHDL_NODE_FD);
 	n->p.fd.clock = clock;
 	n->p.fd.data = data;
-	return n;
-}
-
-struct llhdl_node *llhdl_create_integer(mpz_t value)
-{
-	struct llhdl_node *n;
-
-	n = alloc_base_node(sizeof(struct llhdl_node_integer), LLHDL_NODE_INTEGER);
-	mpz_init_set(n->p.integer.value, value);
 	return n;
 }
 
@@ -171,7 +164,8 @@ void llhdl_free_node(struct llhdl_node *n)
 		return;
 
 	switch(n->type) {
-		case LLHDL_NODE_BOOLEAN:
+		case LLHDL_NODE_CONSTANT:
+			mpz_clear(n->p.constant.value);
 			break;
 		case LLHDL_NODE_MUX:
 			llhdl_free_node(n->p.mux.sel);
@@ -181,9 +175,6 @@ void llhdl_free_node(struct llhdl_node *n)
 		case LLHDL_NODE_FD:
 			llhdl_free_node(n->p.fd.clock);
 			llhdl_free_node(n->p.fd.data);
-			break;
-		case LLHDL_NODE_INTEGER:
-			mpz_clear(n->p.integer.value);
 			break;
 		case LLHDL_NODE_SLICE:
 			llhdl_free_node(n->p.slice.source);
