@@ -208,23 +208,39 @@ static void *map_level(struct map_level_param *mlp, struct enumerated_signal *s)
 	}
 }
 
+static struct llhdl_node *is_identity(struct llhdl_node *n)
+{
+	if(n->type != LLHDL_NODE_MUX) return NULL;
+	if((n->p.mux.negative->type != LLHDL_NODE_BOOLEAN) ||  (n->p.mux.negative->p.boolean.value)) return NULL;
+	if((n->p.mux.positive->type != LLHDL_NODE_BOOLEAN) || !(n->p.mux.positive->p.boolean.value)) return NULL;
+	return n->p.mux.sel;
+}
+
 struct tilm_result *tilm_shannon_map(struct tilm_param *p, struct llhdl_node *top)
 {
 	struct map_level_param mlp;
 	struct tilm_result *result;
 	void *out_lut;
+	struct llhdl_node *identity;
 
 	mlp.p = p;
 	mlp.e = enumeration_new();
 	mlp.top = top;
 	mlp.rg = tilm_rg_new();
 	
-	enumerate(mlp.e, top);
-	out_lut = map_level(&mlp, mlp.e->head);
+	identity = is_identity(top);
+	if(identity != NULL) {
+		tilm_rg_add(mlp.rg, identity, NULL, 0);
+		out_lut = NULL;
+	} else {
+		enumerate(mlp.e, top);
+		out_lut = map_level(&mlp, mlp.e->head);
+	}
+	
 	result = tilm_rg_generate(mlp.rg, out_lut);
 	
 	tilm_rg_free(mlp.rg);
 	enumeration_free(mlp.e);
-	
+
 	return result;
 }

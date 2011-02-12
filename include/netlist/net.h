@@ -36,6 +36,7 @@ struct netlist_branch {
 struct netlist_net {
 	unsigned int uid;		/* < unique identifier */
 	struct netlist_branch *head;	/* < first branch on this net */
+	struct netlist_net *joined;	/* < redirect if this net has been joined, NULL otherwise */
 	struct netlist_net *next;	/* < next net in this manager */
 };
 
@@ -45,6 +46,8 @@ void netlist_free_instance(struct netlist_instance *inst);
 void netlist_set_attribute(struct netlist_instance *inst, const char *attr, const char *value);
 
 struct netlist_net *netlist_create_net(unsigned int uid);
+struct netlist_net *netlist_resolve_joined(struct netlist_net *net);
+void netlist_join(struct netlist_net *resulting, struct netlist_net *tomerge);
 void netlist_add_branch(struct netlist_net *net, struct netlist_instance *inst, int output, int pin_index);
 void netlist_free_net(struct netlist_net *net);
 

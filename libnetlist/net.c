@@ -68,13 +68,43 @@ struct netlist_net *netlist_create_net(unsigned int uid)
 	net = alloc_type(struct netlist_net);
 	net->uid = uid;
 	net->head = NULL;
+	net->joined = NULL;
 	net->next = NULL;
 	return net;
+}
+
+struct netlist_net *netlist_resolve_joined(struct netlist_net *net)
+{
+	while(net->joined != NULL)
+		net = net->joined;
+	return net;
+}
+
+void netlist_join(struct netlist_net *resulting, struct netlist_net *tomerge)
+{
+	struct netlist_branch *last;
+	
+	resulting = netlist_resolve_joined(resulting);
+	tomerge = netlist_resolve_joined(tomerge);
+	if(resulting == tomerge) return;
+	
+	if(resulting->head != NULL) {
+		last = resulting->head;
+		while(last->next != NULL)
+			last = last->next;
+		last->next = tomerge->head;
+	} else
+		resulting->head = tomerge->head;
+	
+	tomerge->head = NULL;
+	tomerge->joined = resulting;
 }
 
 void netlist_add_branch(struct netlist_net *net, struct netlist_instance *inst, int output, int pin_index)
 {
 	struct netlist_branch *branch;
+
+	net = netlist_resolve_joined(net);
 
 	if(output)
 		assert(pin_index < inst->p->outputs);

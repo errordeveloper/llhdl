@@ -147,6 +147,7 @@ static void write_connections(struct netlist_manager *m, FILE *fd, struct edif_p
 	while(net != NULL) {
 		branch = net->head;
 		if(branch != NULL) {
+			assert(net->joined == NULL);
 			fprintf(fd, "(net N%08x\n", net->uid);
 			fprintf(fd, "(joined\n");
 			while(branch != NULL) {

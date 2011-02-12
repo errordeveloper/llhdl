@@ -201,7 +201,9 @@ static void map_bdd(struct tilm_param *p, struct llhdl_node *n)
 	
 	/* Special case: no logic was generated, this happens when BDD is identity */
 	if(result->out_lut == NULL) {
-		/* TODO: join nets */
+		assert(result->n_input_assoc == 1);
+		netlist_join(resolve_signal(sc, n), 
+			resolve_signal(sc, result->input_assoc[0].signal));
 		free(result);
 		return;
 	}
@@ -278,7 +280,7 @@ static void map_logic(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_p
 				/* nothing to do */
 				break;
 			case LLHDL_PURE_SIGNAL:
-				/* TODO: join nets */
+				netlist_join(resolve_signal(sc, n), resolve_signal(sc, n->p.signal.source));
 				break;
 			case LLHDL_PURE_CONSTANT:
 				/* Integers should have been broken down into booleans by de-vectorization. */
