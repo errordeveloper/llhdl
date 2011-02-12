@@ -324,7 +324,7 @@ void run_flow(const char *input_lhd, const char *output_edf, const char *output_
 	edif_param.manufacturer = "Xilinx";
 	
 	/* Break down the LLHDL structure */
-	bd_purify(sc.module);
+	bd_flow(sc.module, 0);
 	
 	/* Find clock (we only support single clock designs atm) */
 	find_clock(&sc);

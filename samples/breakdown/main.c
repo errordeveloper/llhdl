@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 	}
 	
 	m = llhdl_parse_file(argv[1]);
-	bd_purify(m);
+	bd_flow(m, 0);
 	llhdl_write_fd(m, stdout);
 	llhdl_free_module(m);
 

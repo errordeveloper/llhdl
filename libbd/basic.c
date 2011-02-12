@@ -84,3 +84,8 @@ void bd_purify(struct llhdl_module *m)
 	}
 }
 
+
+void bd_devectorize(struct llhdl_module *m)
+{
+}
+
