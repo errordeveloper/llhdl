@@ -49,17 +49,20 @@ struct tilm_param {
 
 struct tilm_input_assoc {
 	struct llhdl_node *signal;
+	int bit;
 	void *lut;
 	int n;
 };
 
 struct tilm_result {
-	void *out_lut;
+	void **out_luts;
+	int vectorsize;
 	int n_input_assoc;
 	struct tilm_input_assoc input_assoc[];
 };
 
 struct tilm_result *tilm_map(struct tilm_param *p, struct llhdl_node *top);
+void tilm_free_result(struct tilm_result *r);
 
 #endif /* __TILM_TILM_H */
 

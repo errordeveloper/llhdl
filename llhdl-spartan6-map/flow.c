@@ -55,84 +55,124 @@ static char *iosuffix(const char *base)
 {
 	int r;
 	char *ret;
-	r = asprintf(&ret, "%s_IO", base);
+	r = asprintf(&ret, "%s$IO", base);
 	if(r == -1) abort();
 	return ret;
+}
+
+/* TODO: better naming of vectors, this one could cause conflicts */
+static char *vecsuffix(const char *base, int i)
+{
+	int r;
+	char *ret;
+	r = asprintf(&ret, "%s_%d", base, i);
+	if(r == -1) abort();
+	return ret;
+}
+
+static void create_io(struct flow_sc *sc, struct llhdl_node *n, struct netlist_net *net, const char *name)
+{
+	int isout;
+	int buf_type;
+	int buf_port_fabric, buf_port_pin;
+	char *ioname;
+	struct netlist_sym *sym;
+	struct netlist_instance *iobuf;
+	struct netlist_net *ionet;
+	struct netlist_primitive *ioprim;
+	struct netlist_instance *ioport;
+
+	isout = n->p.signal.type == LLHDL_SIGNAL_PORT_OUT;
+	if(n == sc->clock) {
+		assert(!isout);
+		buf_type = NETLIST_XIL_BUFGP;
+		buf_port_fabric = NETLIST_XIL_BUFGP_O;
+		buf_port_pin = NETLIST_XIL_BUFGP_I;
+	} else if(isout) {
+		buf_type = NETLIST_XIL_OBUF;
+		buf_port_fabric = NETLIST_XIL_OBUF_I;
+		buf_port_pin = NETLIST_XIL_OBUF_O;
+	} else {
+		buf_type = NETLIST_XIL_IBUF;
+		buf_port_fabric = NETLIST_XIL_IBUF_O;
+		buf_port_pin = NETLIST_XIL_IBUF_I;
+	}
+
+	/* I/O and clock buffer insertion */
+	iobuf = netlist_m_instantiate(sc->netlist, &netlist_xilprims[buf_type]);
+	ionet = netlist_m_create_net(sc->netlist);
+	ioname = iosuffix(name);
+	sym = netlist_sym_add(sc->symbols, ionet->uid, 'N', ioname);
+	sym->user = ionet;
+	free(ioname);
+	netlist_add_branch(ionet, iobuf, !isout, buf_port_fabric);
+
+	/* Create I/O port and connect to buffer */
+	ioprim = netlist_create_io_primitive(sc->netlist_iop, 
+		isout ? NETLIST_PRIMITIVE_PORT_OUT : NETLIST_PRIMITIVE_PORT_IN,
+		name);
+	ioport = netlist_m_instantiate(sc->netlist, ioprim);
+	netlist_add_branch(net, ioport, !isout, 0);
+	netlist_add_branch(net, iobuf, isout, buf_port_pin);
+}
+
+static void create_signal(struct flow_sc *sc, struct llhdl_node *n)
+{
+	struct netlist_net *net;
+	struct netlist_sym *sym;
+	int i;
+	char *name;
+
+	for(i=0;i<n->p.signal.vectorsize;i++) {
+		if(n->p.signal.vectorsize == 1)
+			name = n->p.signal.name;
+		else
+			name = vecsuffix(n->p.signal.name, i);
+		net = netlist_m_create_net(sc->netlist);
+		sym = netlist_sym_add(sc->symbols, net->uid, 'N', name);
+		sym->user = net;
+		if(n->p.signal.type != LLHDL_SIGNAL_INTERNAL)
+			create_io(sc, n, net, name);
+		if(n->p.signal.vectorsize != 1)
+			free(name);
+	}
 }
 
 static void create_signals(struct flow_sc *sc)
 {
 	struct llhdl_node *n;
-	struct netlist_net *net;
-	struct netlist_sym *sym;
-	int isout;
-	int buf_type;
-	int buf_port_fabric, buf_port_pin;
-	char *ioname;
-	struct netlist_instance *iobuf;
-	struct netlist_net *ionet;
-	struct netlist_primitive *ioprim;
-	struct netlist_instance *ioport;
 	
 	n = sc->module->head;
 	while(n != NULL) {
 		assert(n->type == LLHDL_NODE_SIGNAL);
-		net = netlist_m_create_net(sc->netlist);
-		sym = netlist_sym_add(sc->symbols, net->uid, 'N', n->p.signal.name);
-		sym->user = net;
-		if(n->p.signal.type != LLHDL_SIGNAL_INTERNAL) {
-			isout = n->p.signal.type == LLHDL_SIGNAL_PORT_OUT;
-			if(n == sc->clock) {
-				assert(!isout);
-				buf_type = NETLIST_XIL_BUFGP;
-				buf_port_fabric = NETLIST_XIL_BUFGP_O;
-				buf_port_pin = NETLIST_XIL_BUFGP_I;
-			} else if(isout) {
-				buf_type = NETLIST_XIL_OBUF;
-				buf_port_fabric = NETLIST_XIL_OBUF_I;
-				buf_port_pin = NETLIST_XIL_OBUF_O;
-			} else {
-				buf_type = NETLIST_XIL_IBUF;
-				buf_port_fabric = NETLIST_XIL_IBUF_O;
-				buf_port_pin = NETLIST_XIL_IBUF_I;
-			}
-
-			/* I/O and clock buffer insertion */
-			iobuf = netlist_m_instantiate(sc->netlist, &netlist_xilprims[buf_type]);
-			ionet = netlist_m_create_net(sc->netlist);
-			ioname = iosuffix(n->p.signal.name);
-			sym = netlist_sym_add(sc->symbols, ionet->uid, 'N', ioname);
-			sym->user = ionet;
-			free(ioname);
-			netlist_add_branch(ionet, iobuf, !isout, buf_port_fabric);
-
-			/* Create I/O port and connect to buffer */
-			ioprim = netlist_create_io_primitive(sc->netlist_iop, 
-				isout ? NETLIST_PRIMITIVE_PORT_OUT : NETLIST_PRIMITIVE_PORT_IN,
-				n->p.signal.name);
-			ioport = netlist_m_instantiate(sc->netlist, ioprim);
-			netlist_add_branch(net, ioport, !isout, 0);
-			netlist_add_branch(net, iobuf, isout, buf_port_pin);
-		}
+		create_signal(sc, n);
 		n = n->p.signal.next;
 	}
 }
 
-static struct netlist_net *resolve_signal(struct flow_sc *sc, struct llhdl_node *n)
+static struct netlist_net *resolve_signal(struct flow_sc *sc, struct llhdl_node *n, int bit)
 {
 	struct netlist_sym *sym;
+	int is_vec;
 	int is_io;
-	char *signame;
+	char *vecname, *signame;
 
 	assert(n->type == LLHDL_NODE_SIGNAL);
+	is_vec = n->p.signal.vectorsize != 1;
 	is_io = n->p.signal.type != LLHDL_SIGNAL_INTERNAL;
-	if(is_io)
-		signame = iosuffix(n->p.signal.name);
+	if(is_vec)
+		vecname = vecsuffix(n->p.signal.name, bit);
 	else
-		signame = n->p.signal.name;
+		vecname = n->p.signal.name;
+	if(is_io)
+		signame = iosuffix(vecname);
+	else
+		signame = vecname;
 	sym = netlist_sym_lookup(sc->symbols, signame, 'N');
 	if(is_io)
 		free(signame);
+	if(is_vec)
+		free(vecname);
 	assert(sym != NULL);
 
 	return sym->user;
@@ -189,7 +229,7 @@ static void lut_connect(void *a, void *b, int n, void *user)
 	netlist_add_branch(net, b, 0, n);
 }
 
-static void map_bdd(struct tilm_param *p, struct llhdl_node *n)
+static void map_lut(struct tilm_param *p, struct llhdl_node *n)
 {
 	struct flow_sc *sc = p->user;
 	struct tilm_result *result;
@@ -199,48 +239,46 @@ static void map_bdd(struct tilm_param *p, struct llhdl_node *n)
 	/* Run technology-independent LUT mapper */
 	result = tilm_map(p, n->p.signal.source);
 	
-	/* Special case: no logic was generated, this happens when BDD is identity */
-	if(result->out_lut == NULL) {
-		assert(result->n_input_assoc == 1);
-		netlist_join(resolve_signal(sc, n), 
-			resolve_signal(sc, result->input_assoc[0].signal));
-		free(result);
-		return;
+	/* Connect outputs of the generated logic */
+	for(i=0;i<result->vectorsize;i++) {
+		net = resolve_signal(sc, n, i);
+		netlist_add_branch(net, result->out_luts[i], 1, 0);
 	}
-	
-	/* Connect output of the generated logic */
-	net = resolve_signal(sc, n);
-	netlist_add_branch(net, result->out_lut, 1, 0);
 	
 	/* Connect inputs of the generated logic */
 	for(i=0;i<result->n_input_assoc;i++) {
-		net = resolve_signal(sc, result->input_assoc[i].signal);
+		net = resolve_signal(sc, result->input_assoc[i].signal, result->input_assoc[i].bit);
 		netlist_add_branch(net, result->input_assoc[i].lut, 0, result->input_assoc[i].n);
 	}
 	
-	free(result);
+	tilm_free_result(result);
 }
 
 static void map_fd(struct flow_sc *sc, struct llhdl_node *n)
 {
+	int i, size;
 	struct netlist_net *net;
 	struct netlist_instance *inst;
-	
-	net = resolve_signal(sc, n);
-	n = n->p.signal.source;
-	while(n->type == LLHDL_NODE_FD) {
-		inst = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_FD]);
-		netlist_add_branch(net, inst, 1, NETLIST_XIL_FD_Q);
-		netlist_add_branch(resolve_signal(sc, n->p.fd.clock), inst, 0, NETLIST_XIL_FD_C);
+	struct llhdl_node *n2;
+
+	size = llhdl_get_vectorsize(n);
+	for(i=0;i<size;i++) {
+		net = resolve_signal(sc, n, i);
+		n2 = n->p.signal.source;
+		while(n2->type == LLHDL_NODE_FD) {
+			inst = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_FD]);
+			netlist_add_branch(net, inst, 1, NETLIST_XIL_FD_Q);
+			netlist_add_branch(resolve_signal(sc, n2->p.fd.clock, 0), inst, 0, NETLIST_XIL_FD_C);
+
+			if(n2->p.fd.data->type == LLHDL_NODE_FD) {
+				net = netlist_m_create_net(sc->netlist);
+				netlist_add_branch(net, inst, 0, NETLIST_XIL_FD_D);
+			} else
+				/* Last data must be a signal */
+				netlist_add_branch(resolve_signal(sc, n2->p.fd.data, i), inst, 0, NETLIST_XIL_FD_D);
 		
-		if(n->p.fd.data->type == LLHDL_NODE_FD) {
-			net = netlist_m_create_net(sc->netlist);
-			netlist_add_branch(net, inst, 0, NETLIST_XIL_FD_D);
-		} else
-			/* Last data must be a signal */
-			netlist_add_branch(resolve_signal(sc, n->p.fd.data), inst, 0, NETLIST_XIL_FD_D);
-		
-		n = n->p.fd.data;
+			n2 = n2->p.fd.data;
+		}
 	}
 }
 
@@ -257,7 +295,22 @@ static struct netlist_instance *get_gnd_vcc(struct flow_sc *sc, int v)
 	}
 }
 
-static void map_logic(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param)
+static void map_connect(struct flow_sc *sc, struct llhdl_node *n)
+{
+	int i;
+	struct netlist_net *net;
+	struct llhdl_node *c;
+	
+	// TODO: complete this. Perhaps should be moved to logic mapper?
+	c = n->p.signal.source;
+	assert(c->type == LLHDL_NODE_CONSTANT);
+	for(i=0;i<c->p.constant.vectorsize;i++) {
+		net = resolve_signal(sc, n, i);
+		netlist_add_branch(net, get_gnd_vcc(sc, mpz_tstbit(c->p.constant.value, i)), 1, 0);
+	}
+}
+
+static void map(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param)
 {
 	struct tilm_param tilm_param;
 	struct llhdl_node *n;
@@ -279,19 +332,11 @@ static void map_logic(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_p
 			case LLHDL_PURE_EMPTY:
 				/* nothing to do */
 				break;
-			case LLHDL_PURE_SIGNAL:
-				netlist_join(resolve_signal(sc, n), resolve_signal(sc, n->p.signal.source));
+			case LLHDL_PURE_CONNECT:
+				map_connect(sc, n);
 				break;
-			case LLHDL_PURE_CONSTANT:
-				/* Integers should have been broken down into single bits by de-vectorization. */
-				assert(n->p.signal.source->p.constant.sign == 0);
-				assert(n->p.signal.source->p.constant.vectorsize == 1);
-				netlist_add_branch(resolve_signal(sc, n),
-					get_gnd_vcc(sc, mpz_get_si(n->p.signal.source->p.constant.value)),
-					1, 0);
-				break;
-			case LLHDL_PURE_BDD:
-				map_bdd(&tilm_param, n);
+			case LLHDL_PURE_LOGIC:
+				map_lut(&tilm_param, n);
 				break;
 			case LLHDL_PURE_FD:
 				map_fd(sc, n);
@@ -338,7 +383,7 @@ void run_flow(const char *input_lhd, const char *output_edf, const char *output_
 	create_signals(&sc);
 	
 	/* Map logic */
-	map_logic(&sc, lutmapper, lutmapper_extra_param);
+	map(&sc, lutmapper, lutmapper_extra_param);
 	
 	/* Write output files */
 	netlist_m_edif_file(sc.netlist, output_edf, &edif_param);

@@ -30,12 +30,13 @@ void tilm_rg_free(struct tilm_rg *rg)
 	free(rg);
 }
 
-void tilm_rg_add(struct tilm_rg *rg, struct llhdl_node *signal, void *lut, int n)
+void tilm_rg_add(struct tilm_rg *rg, struct llhdl_node *signal, int bit, void *lut, int n)
 {
 	struct tilm_rg_input_assoc *a;
 	
 	a = alloc_type(struct tilm_rg_input_assoc);
 	a->payload.signal = signal;
+	a->payload.bit = bit;
 	a->payload.lut = lut;
 	a->payload.n = n;
 	a->next = rg->head;
@@ -56,7 +57,7 @@ int tilm_rg_count(struct tilm_rg *rg)
 	return i;
 }
 
-struct tilm_result *tilm_rg_generate(struct tilm_rg *rg, void *out_lut)
+struct tilm_result *tilm_rg_generate(struct tilm_rg *rg, void **out_luts, int vectorsize)
 {
 	int count;
 	struct tilm_result *r;
@@ -65,7 +66,8 @@ struct tilm_result *tilm_rg_generate(struct tilm_rg *rg, void *out_lut)
 	
 	count = tilm_rg_count(rg);
 	r = alloc_size(sizeof(struct tilm_result)+count*sizeof(struct tilm_input_assoc));
-	r->out_lut = out_lut;
+	r->out_luts = out_luts;
+	r->vectorsize = vectorsize;
 	r->n_input_assoc = count;
 	a = rg->head;
 	i = 0;

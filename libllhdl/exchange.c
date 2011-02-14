@@ -4,11 +4,12 @@
 #include <string.h>
 #include <gmp.h>
 
+#include <util.h>
+
 #include <llhdl/structure.h>
 #include <llhdl/exchange.h>
 
 enum {
-	CMD_INVALID,
 	CMD_NONE,
 	CMD_MODULE,
 	CMD_INPUT,
@@ -26,17 +27,19 @@ static int str_to_cmd(const char *str)
 	if(strcmp(str, "output") == 0) return CMD_OUTPUT;
 	if(strcmp(str, "signal") == 0) return CMD_SIGNAL;
 	if(strcmp(str, "assign") == 0) return CMD_ASSIGN;
-	return CMD_INVALID;
+	fprintf(stderr, "Invalid command: %s\n", str);
+	exit(EXIT_FAILURE);
+	return 0;
 }
 
 enum {
-	OP_INVALID,
+	OP_NOT,
+	OP_AND,
+	OP_OR,
+	OP_XOR,
 	OP_MUX,
 	OP_FD,
-	OP_SLICE,
-	OP_CAT,
-	OP_SIGN,
-	OP_UNSIGN,
+	OP_VECT,
 	OP_ADD,
 	OP_SUB,
 	OP_MUL
@@ -44,16 +47,48 @@ enum {
 
 static int str_to_op(const char *str)
 {
+	if(strcmp(str, "not") == 0) return OP_NOT;
+	if(strcmp(str, "and") == 0) return OP_AND;
+	if(strcmp(str, "or") == 0) return OP_OR;
+	if(strcmp(str, "xor") == 0) return OP_XOR;
 	if(strcmp(str, "mux") == 0) return OP_MUX;
 	if(strcmp(str, "fd") == 0) return OP_FD;
-	if(strcmp(str, "slice") == 0) return OP_SLICE;
-	if(strcmp(str, "cat") == 0) return OP_CAT;
-	if(strcmp(str, "sign") == 0) return OP_SIGN;
-	if(strcmp(str, "unsign") == 0) return OP_UNSIGN;
+	if(strcmp(str, "vect") == 0) return OP_VECT;
 	if(strcmp(str, "add") == 0) return OP_ADD;
 	if(strcmp(str, "sub") == 0) return OP_SUB;
 	if(strcmp(str, "mul") == 0) return OP_MUL;
-	return OP_INVALID;
+	fprintf(stderr, "Invalid operation: %s\n", str);
+	exit(EXIT_FAILURE);
+	return 0;
+}
+
+static int op_to_llhdl(int op)
+{
+	switch(op) {
+		case OP_NOT: return LLHDL_LOGIC_NOT;
+		case OP_AND: return LLHDL_LOGIC_AND;
+		case OP_OR: return LLHDL_LOGIC_OR;
+		case OP_XOR: return LLHDL_LOGIC_XOR;
+		case OP_ADD: return LLHDL_ARITH_ADD;
+		case OP_SUB: return LLHDL_ARITH_SUB;
+		case OP_MUL: return LLHDL_ARITH_MUL;
+		default:
+			assert(0);
+			return 0;
+	}
+}
+
+static int str_to_int(const char *str)
+{
+	char *c;
+	int r;
+	
+	r = strtol(str, &c, 0);
+	if(*c != 0) {
+		fprintf(stderr, "Invalid integer: %s\n", str);
+		exit(EXIT_FAILURE);
+	}
+	return r;
 }
 
 static const char delims[] = " \t\n";
@@ -159,75 +194,76 @@ static struct llhdl_node *parse_constant(char *t)
 }
 
 static struct llhdl_node *parse_expr(struct llhdl_module *m, char **saveptr);
+static int parse_expr_i(struct llhdl_module *m, char **saveptr);
+static int parse_expr_s(struct llhdl_module *m, char **saveptr);
+
+static struct llhdl_node **parse_nexpr(struct llhdl_module *m, char **saveptr, int n)
+{
+	int i;
+	struct llhdl_node **branches;
+	
+	branches = alloc_size(n*sizeof(struct llhdl_node *));
+	for(i=0;i<n;i++)
+		branches[i] = parse_expr(m, saveptr);
+	
+	return branches;
+}
 
 static struct llhdl_node *parse_operator(struct llhdl_module *m, char *op, char **saveptr)
 {
 	int opc;
-	struct llhdl_node *p1, *p2, *p3;
+	struct llhdl_node **branches;
+	struct llhdl_node *n;
+	int i, count;
+	struct llhdl_node *select;
+	int sign;
+	struct llhdl_slice *slices;
 
+	branches = NULL;
 	opc = str_to_op(op);
 	switch(opc) {
+		case OP_NOT:
+		case OP_AND:
+		case OP_OR:
+		case OP_XOR:
+			branches = parse_nexpr(m, saveptr, llhdl_get_logic_arity(op_to_llhdl(opc)));
+			n = llhdl_create_logic(op_to_llhdl(opc), branches);
+			break;
 		case OP_MUX:
-			p1 = parse_expr(m, saveptr);
-			p2 = parse_expr(m, saveptr);
-			p3 = parse_expr(m, saveptr);
-			return llhdl_create_mux(p1, p2, p3);
+			count = parse_expr_i(m, saveptr);
+			select = parse_expr(m, saveptr);
+			branches = parse_nexpr(m, saveptr, count);
+			n = llhdl_create_mux(count, select, branches);
+			break;
 		case OP_FD:
-			p1 = parse_expr(m, saveptr);
-			p2 = parse_expr(m, saveptr);
-			return llhdl_create_fd(p1, p2);
-		case OP_SLICE: {
-			struct llhdl_node *n;
-			int start, end;
-			
-			p1 = parse_expr(m, saveptr);
-			p2 = parse_expr(m, saveptr);
-			p3 = parse_expr(m, saveptr);
-			
-			if((p2->type != LLHDL_NODE_CONSTANT) || (p3->type != LLHDL_NODE_CONSTANT)) {
-				fprintf(stderr, "Start and end of slice must be constant\n");
-				exit(EXIT_FAILURE);
+			branches = parse_nexpr(m, saveptr, 2);
+			n = llhdl_create_fd(branches[0], branches[1]);
+			break;
+		case OP_VECT:
+			sign = parse_expr_s(m, saveptr);
+			count = parse_expr_i(m, saveptr);
+			assert(count > 0);
+			slices = alloc_size(count*sizeof(struct llhdl_slice));
+			for(i=0;i<count;i++) {
+				slices[i].source = parse_expr(m, saveptr);
+				slices[i].start = parse_expr_i(m, saveptr);
+				slices[i].end = parse_expr_i(m, saveptr);
 			}
-			if(mpz_fits_slong_p(p2->p.constant.value))
-				start = mpz_get_si(p2->p.constant.value);
-			else
-				start = -1;
-			if(mpz_fits_slong_p(p3->p.constant.value))
-				end = mpz_get_si(p3->p.constant.value);
-			else
-				end = -1;
-			n = llhdl_create_slice(p1, start, end);
-			llhdl_free_node(p2);
-			llhdl_free_node(p3);
-			return n;
-		}
-		case OP_CAT:
-			p1 = parse_expr(m, saveptr);
-			p2 = parse_expr(m, saveptr);
-			return llhdl_create_cat(p1, p2);
-		case OP_SIGN:
-			p1 = parse_expr(m, saveptr);
-			return llhdl_create_sign(p1, 1);
-		case OP_UNSIGN:
-			p1 = parse_expr(m, saveptr);
-			return llhdl_create_sign(p1, 0);
+			n = llhdl_create_vect(sign, count, slices);
+			free(slices);
+			break;
 		case OP_ADD:
-			p1 = parse_expr(m, saveptr);
-			p2 = parse_expr(m, saveptr);
-			return llhdl_create_arith(LLHDL_ARITH_ADD, p1, p2);
 		case OP_SUB:
-			p1 = parse_expr(m, saveptr);
-			p2 = parse_expr(m, saveptr);
-			return llhdl_create_arith(LLHDL_ARITH_SUB, p1, p2);
 		case OP_MUL:
-			p1 = parse_expr(m, saveptr);
-			p2 = parse_expr(m, saveptr);
-			return llhdl_create_arith(LLHDL_ARITH_MUL, p1, p2);
+			branches = parse_nexpr(m, saveptr, 2);
+			n = llhdl_create_arith(op_to_llhdl(opc), branches[0], branches[1]);
+			break;
 		default:
-			fprintf(stderr, "Unknown operator: %s\n", op);
-			exit(EXIT_FAILURE);
+			assert(0);
 			return NULL;
 	}
+	free(branches);
+	return n;
 }
 
 static struct llhdl_node *parse_expr(struct llhdl_module *m, char **saveptr)
@@ -258,6 +294,34 @@ static struct llhdl_node *parse_expr(struct llhdl_module *m, char **saveptr)
 			return n;
 		}
 	}
+}
+
+static int parse_expr_i(struct llhdl_module *m, char **saveptr)
+{
+	char *token;
+
+	token = strtok_r(NULL, delims, saveptr);
+	if(token == NULL) {
+		fprintf(stderr, "Unexpected end of expression\n");
+		exit(EXIT_FAILURE);
+	}
+	return str_to_int(token);
+}
+
+static int parse_expr_s(struct llhdl_module *m, char **saveptr)
+{
+	char *token;
+
+	token = strtok_r(NULL, delims, saveptr);
+	if(token == NULL) {
+		fprintf(stderr, "Unexpected end of expression\n");
+		exit(EXIT_FAILURE);
+	}
+	if(strcmp(token, "s") == 0) return 1;
+	if(strcmp(token, "u") == 0) return 0;
+	fprintf(stderr, "Unexpected sign qualifier: %s\n", token);
+	exit(EXIT_FAILURE);
+	return 0;
 }
 
 static void parse_assign(struct llhdl_module *m, char **saveptr)
@@ -373,6 +437,9 @@ static void write_signals(struct llhdl_module *m, FILE *fd)
 
 static void write_expr(FILE *fd, struct llhdl_node *n)
 {
+	int arity;
+	int i;
+	
 	fprintf(fd, " ");
 	switch(n->type) {
 		case LLHDL_NODE_CONSTANT:
@@ -383,33 +450,47 @@ static void write_expr(FILE *fd, struct llhdl_node *n)
 		case LLHDL_NODE_SIGNAL:
 			fprintf(fd, "%s", n->p.signal.name);
 			break;
+		case LLHDL_NODE_LOGIC:
+			switch(n->p.logic.op) {
+				case LLHDL_LOGIC_NOT:
+					fprintf(fd, "#not");
+					break;
+				case LLHDL_LOGIC_AND:
+					fprintf(fd, "#and");
+					break;
+				case LLHDL_LOGIC_OR:
+					fprintf(fd, "#or");
+					break;
+				case LLHDL_LOGIC_XOR:
+					fprintf(fd, "#xor");
+					break;
+				default:
+					assert(0);
+					break;
+			}
+			arity = llhdl_get_logic_arity(n->p.logic.op);
+			for(i=0;i<arity;i++)
+				write_expr(fd, n->p.logic.operands[i]);
+			break;
 		case LLHDL_NODE_MUX:
-			fprintf(fd, "#mux");
-			write_expr(fd, n->p.mux.sel);
-			write_expr(fd, n->p.mux.negative);
-			write_expr(fd, n->p.mux.positive);
+			fprintf(fd, "#mux %d", n->p.mux.nsources);
+			write_expr(fd, n->p.mux.select);
+			for(i=0;i<n->p.mux.nsources;i++)
+				write_expr(fd, n->p.mux.sources[i]);
 			break;
 		case LLHDL_NODE_FD:
 			fprintf(fd, "#fd");
 			write_expr(fd, n->p.fd.clock);
 			write_expr(fd, n->p.fd.data);
 			break;
-		case LLHDL_NODE_SLICE:
-			fprintf(fd, "#slice");
-			write_expr(fd, n->p.slice.source);
-			fprintf(fd, " %d %d", n->p.slice.start, n->p.slice.end);
-			break;
-		case LLHDL_NODE_CAT:
-			fprintf(fd, "#cat");
-			write_expr(fd, n->p.cat.msb);
-			write_expr(fd, n->p.cat.lsb);
-			break;
-		case LLHDL_NODE_SIGN:
-			if(n->p.sign.sign)
-				fprintf(fd, "#sign");
-			else
-				fprintf(fd, "#unsign");
-			write_expr(fd, n->p.sign.source);
+		case LLHDL_NODE_VECT:
+			fprintf(fd, "#vect %c %d",
+				n->p.vect.sign ? 's' : 'u',
+				n->p.vect.nslices);
+			for(i=0;i<n->p.vect.nslices;i++) {
+				write_expr(fd, n->p.vect.slices[i].source);
+				fprintf(fd, " %d %d", n->p.vect.slices[i].start, n->p.vect.slices[i].end);
+			}
 			break;
 		case LLHDL_NODE_ARITH:
 			switch(n->p.arith.op) {
@@ -428,6 +509,9 @@ static void write_expr(FILE *fd, struct llhdl_node *n)
 			}
 			write_expr(fd, n->p.arith.a);
 			write_expr(fd, n->p.arith.b);
+			break;
+		default:
+			assert(0);
 			break;
 	}
 }

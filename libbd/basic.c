@@ -14,6 +14,8 @@ struct purify_arc_param {
 /* If node n is not compatible with purity, create a new signal and replace n with that signal */
 static void purify_arc(struct purify_arc_param *p, struct llhdl_node **n, int purity)
 {
+	int i, arity;
+
 	if(*n == NULL) return;
 	if(llhdl_belongs_in_pure(purity, (*n)->type)) {
 		llhdl_update_purity_node(&purity, (*n)->type);
@@ -21,22 +23,22 @@ static void purify_arc(struct purify_arc_param *p, struct llhdl_node **n, int pu
 			case LLHDL_NODE_CONSTANT:
 			case LLHDL_NODE_SIGNAL:
 				break;
+			case LLHDL_NODE_LOGIC:
+				arity = llhdl_get_logic_arity((*n)->p.logic.op);
+				for(i=0;i<arity;i++)
+					purify_arc(p, &(*n)->p.logic.operands[i], purity);
+				break;
 			case LLHDL_NODE_MUX:
-				purify_arc(p, &(*n)->p.mux.negative, purity);
-				purify_arc(p, &(*n)->p.mux.positive, purity);
+				purify_arc(p, &(*n)->p.mux.select, purity);
+				for(i=0;i<(*n)->p.mux.nsources;i++)
+					purify_arc(p, &(*n)->p.mux.sources[i], purity);
 				break;
 			case LLHDL_NODE_FD:
 				purify_arc(p, &(*n)->p.fd.data, purity);
 				break;
-			case LLHDL_NODE_SLICE:
-				purify_arc(p, &(*n)->p.slice.source, purity);
-				break;
-			case LLHDL_NODE_CAT:
-				purify_arc(p, &(*n)->p.cat.msb, purity);
-				purify_arc(p, &(*n)->p.cat.lsb, purity);
-				break;
-			case LLHDL_NODE_SIGN:
-				purify_arc(p, &(*n)->p.sign.source, purity);
+			case LLHDL_NODE_VECT:
+				for(i=0;i<(*n)->p.vect.nslices;i++)
+					purify_arc(p, &(*n)->p.vect.slices[i].source, purity);
 				break;
 			case LLHDL_NODE_ARITH:
 				purify_arc(p, &(*n)->p.arith.a, purity);
@@ -82,9 +84,3 @@ void bd_purify(struct llhdl_module *m)
 		n = n->p.signal.next;
 	}
 }
-
-
-void bd_devectorize(struct llhdl_module *m)
-{
-}
-

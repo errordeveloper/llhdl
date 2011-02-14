@@ -9,7 +9,6 @@
 
 void bd_replace(struct llhdl_module *m, unsigned int capabilities);
 void bd_purify(struct llhdl_module *m);
-void bd_devectorize(struct llhdl_module *m);
 void bd_flow(struct llhdl_module *m, unsigned int capabilities);
 
 #endif /* __BD_H */

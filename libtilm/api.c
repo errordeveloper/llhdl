@@ -42,3 +42,9 @@ struct tilm_result *tilm_map(struct tilm_param *p, struct llhdl_node *top)
 			return NULL;
 	}
 }
+
+void tilm_free_result(struct tilm_result *r)
+{
+	free(r->out_luts);
+	free(r);
+}

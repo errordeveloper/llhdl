@@ -7,6 +7,18 @@
 
 #include <llhdl/structure.h>
 
+int llhdl_get_logic_arity(int op)
+{
+	switch(op) {
+		case LLHDL_LOGIC_NOT: return 1;
+		case LLHDL_LOGIC_AND: return 2;
+		case LLHDL_LOGIC_OR: return 2;
+		case LLHDL_LOGIC_XOR: return 2;
+		default: assert(0);
+	}
+	return 0;
+}
+
 struct llhdl_module *llhdl_new_module()
 {
 	struct llhdl_module *m;
@@ -90,14 +102,30 @@ struct llhdl_node *llhdl_create_signal(struct llhdl_module *m, int type, const c
 	return n;
 }
 
-struct llhdl_node *llhdl_create_mux(struct llhdl_node *sel, struct llhdl_node *negative, struct llhdl_node *positive)
+struct llhdl_node *llhdl_create_logic(int op, struct llhdl_node **operands)
 {
 	struct llhdl_node *n;
+	int i;
+	int arity;
 
-	n = alloc_base_node(sizeof(struct llhdl_node_mux), LLHDL_NODE_MUX);
-	n->p.mux.sel = sel;
-	n->p.mux.negative = negative;
-	n->p.mux.positive = positive;
+	arity = llhdl_get_logic_arity(op);
+	n = alloc_base_node(sizeof(struct llhdl_node_logic)+arity*sizeof(struct llhdl_node *), LLHDL_NODE_LOGIC);
+	n->p.logic.op = op;
+	for(i=0;i<arity;i++)
+		n->p.logic.operands[i] = operands[i];
+	return n;
+}
+
+struct llhdl_node *llhdl_create_mux(int nsources, struct llhdl_node *select, struct llhdl_node **sources)
+{
+	struct llhdl_node *n;
+	int i;
+	
+	n = alloc_base_node(sizeof(struct llhdl_node_mux)+nsources*sizeof(struct llhdl_node *), LLHDL_NODE_MUX);
+	n->p.mux.nsources = nsources;
+	n->p.mux.select = select;
+	for(i=0;i<nsources;i++)
+		n->p.mux.sources[i] = sources[i];
 	return n;
 }
 
@@ -111,38 +139,21 @@ struct llhdl_node *llhdl_create_fd(struct llhdl_node *clock, struct llhdl_node *
 	return n;
 }
 
-struct llhdl_node *llhdl_create_slice(struct llhdl_node *source, int start, int end)
+struct llhdl_node *llhdl_create_vect(int sign, int nslices, struct llhdl_slice *slices)
 {
 	struct llhdl_node *n;
+	int i;
 
-	if((start < 0) || (end < 0) || (start > end)) {
-		fprintf(stderr, "Invalid bounds of LLHDL slice\n");
-		exit(EXIT_FAILURE);
+	n = alloc_base_node(sizeof(struct llhdl_node_vect)+nslices*sizeof(struct llhdl_slice), LLHDL_NODE_VECT);
+	n->p.vect.sign = sign;
+	n->p.vect.nslices = nslices;
+	for(i=0;i<nslices;i++) {
+		if((slices[i].start < 0) || (slices[i].end < 0) || (slices[i].start > slices[i].end)) {
+			fprintf(stderr, "Invalid bounds of LLHDL slice\n");
+			exit(EXIT_FAILURE);
+		}
+		n->p.vect.slices[i] = slices[i];
 	}
-	n = alloc_base_node(sizeof(struct llhdl_node_slice), LLHDL_NODE_SLICE);
-	n->p.slice.source = source;
-	n->p.slice.start = start;
-	n->p.slice.end = end;
-	return n;
-}
-
-struct llhdl_node *llhdl_create_cat(struct llhdl_node *msb, struct llhdl_node *lsb)
-{
-	struct llhdl_node *n;
-
-	n = alloc_base_node(sizeof(struct llhdl_node_cat), LLHDL_NODE_CAT);
-	n->p.cat.msb = msb;
-	n->p.cat.lsb = lsb;
-	return n;
-}
-
-struct llhdl_node *llhdl_create_sign(struct llhdl_node *source, int sign)
-{
-	struct llhdl_node *n;
-
-	n = alloc_base_node(sizeof(struct llhdl_node_sign), LLHDL_NODE_SIGN);
-	n->p.sign.source = source;
-	n->p.sign.sign = sign;
 	return n;
 }
 
@@ -158,6 +169,9 @@ struct llhdl_node *llhdl_create_arith(int op, struct llhdl_node *a, struct llhdl
 
 void llhdl_free_node(struct llhdl_node *n)
 {
+	int i;
+	int arity;
+
 	if(n == NULL)
 		return;
 	if(n->type == LLHDL_NODE_SIGNAL)
@@ -167,24 +181,18 @@ void llhdl_free_node(struct llhdl_node *n)
 		case LLHDL_NODE_CONSTANT:
 			mpz_clear(n->p.constant.value);
 			break;
-		case LLHDL_NODE_MUX:
-			llhdl_free_node(n->p.mux.sel);
-			llhdl_free_node(n->p.mux.negative);
-			llhdl_free_node(n->p.mux.positive);
+		case LLHDL_NODE_LOGIC:
+			arity = llhdl_get_logic_arity(n->p.logic.op);
+			for(i=0;i<arity;i++)
+				llhdl_free_node(n->p.logic.operands[i]);
 			break;
 		case LLHDL_NODE_FD:
 			llhdl_free_node(n->p.fd.clock);
 			llhdl_free_node(n->p.fd.data);
 			break;
-		case LLHDL_NODE_SLICE:
-			llhdl_free_node(n->p.slice.source);
-			break;
-		case LLHDL_NODE_CAT:
-			llhdl_free_node(n->p.cat.msb);
-			llhdl_free_node(n->p.cat.lsb);
-			break;
-		case LLHDL_NODE_SIGN:
-			llhdl_free_node(n->p.sign.source);
+		case LLHDL_NODE_VECT:
+			for(i=0;i<n->p.vect.nslices;i++)
+				llhdl_free_node(n->p.vect.slices[i].source);
 			break;
 		case LLHDL_NODE_ARITH:
 			llhdl_free_node(n->p.arith.a);
