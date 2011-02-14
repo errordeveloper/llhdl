@@ -327,6 +327,8 @@ static void map(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param)
 				/* nothing to do */
 				break;
 			case LLHDL_PURE_CONNECT:
+				map_fd(&tilm_param_fd, n);
+				break;
 			case LLHDL_PURE_LOGIC:
 				map_lut(&tilm_param, n);
 				break;

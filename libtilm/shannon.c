@@ -147,17 +147,15 @@ static int count_remaining_variables(struct enumerated_signal *s)
 	return i;
 }
 
-static void compose_from_slices(mpz_t v, struct llhdl_slice *slices, int n)
+static void compose_from_slices(mpz_t v, struct llhdl_slice *slices, struct llhdl_node **values, int n)
 {
 	int i, j;
-	int nbits;
 	int bitindex;
 	
 	bitindex = 0;
 	for(i=n-1;i>=0;i--) {
-		nbits = slices[i].end - slices[i].start + 1;
-		for(j=0;j<nbits;i++) {
-			if(mpz_tstbit(slices[i].source->p.constant.value, j))
+		for(j=slices[i].start;j<=slices[i].end;j++) {
+			if(mpz_tstbit(values[i]->p.constant.value, j))
 				mpz_setbit(v, bitindex);
 			bitindex++;
 		}
@@ -185,7 +183,7 @@ static struct llhdl_node *eval(struct enumeration *e, struct llhdl_node *n)
 			for(i=0;i<n->p.vect.nslices;i++)
 				values[i] = eval(e, n->p.vect.slices[i].source);
 			mpz_init(v);
-			compose_from_slices(v, n->p.vect.slices, n->p.vect.nslices);
+			compose_from_slices(v, n->p.vect.slices, values, n->p.vect.nslices);
 			for(i=0;i<n->p.vect.nslices;i++)
 				llhdl_free_node(values[i]);
 			free(values);
@@ -307,7 +305,7 @@ static void *map_level(struct map_level_param *mlp, struct enumerated_signal *s)
 		
 		if((varcount == 1) && (mpz_get_ui(contents) == 2)) {
 			/* Identity - merge nets */
-			tilm_result_add_merge(mlp->result, i, s->ln, s->bit);
+			tilm_result_add_merge(mlp->result, mlp->bit, s->ln, s->bit);
 			lut = NULL;
 		} else {
 			lut = TILM_CALL_CREATE(mlp->p, varcount, contents);

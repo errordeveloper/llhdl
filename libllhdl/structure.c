@@ -149,7 +149,7 @@ struct llhdl_node *llhdl_create_vect(int sign, int nslices, struct llhdl_slice *
 	n->p.vect.nslices = nslices;
 	for(i=0;i<nslices;i++) {
 		if((slices[i].start < 0) || (slices[i].end < 0) || (slices[i].start > slices[i].end)) {
-			fprintf(stderr, "Invalid bounds of LLHDL slice\n");
+			fprintf(stderr, "Invalid bounds of LLHDL slice (%d - %d)\n", slices[i].start, slices[i].end);
 			exit(EXIT_FAILURE);
 		}
 		n->p.vect.slices[i] = slices[i];
