@@ -9,8 +9,6 @@
 #include <llhdl/tools.h>
 #include <tilm/mappers.h>
 
-#include "rg.h"
-
 struct enumerated_signal {
 	struct llhdl_node *ln;
 	int bit;
@@ -121,7 +119,7 @@ static void enumerate(struct enumeration *e, struct llhdl_node *n, int bit)
 					for(j=n->p.vect.slices[i].start;j<=n->p.vect.slices[i].end;j++)
 						enumerate(e, n->p.vect.slices[i].source, j);
 			} else {
-				for(i=0;i<n->p.vect.nslices;i++) {
+				for(i=n->p.vect.nslices-1;i>=0;i--) {
 					len = n->p.vect.slices[i].end - n->p.vect.slices[i].start + 1;
 					if(bit < len) {
 						enumerate(e, n->p.vect.slices[i].source, n->p.vect.slices[i].start + bit);
@@ -290,7 +288,7 @@ struct map_level_param {
 	struct tilm_param *p;
 	struct enumeration *e;
 	struct llhdl_node *top;
-	struct tilm_rg *rg;
+	struct tilm_result *result;
 	int bit;
 };
 
@@ -306,16 +304,24 @@ static void *map_level(struct map_level_param *mlp, struct enumerated_signal *s)
 		
 		mpz_init2(contents, 1 << varcount);
 		eval_multi(mlp->e, s, mlp->top, contents, mlp->bit);
-		lut = TILM_CALL_CREATE(mlp->p, varcount, contents);
-		mpz_clear(contents);
 		
-		i = varcount;
-		while(s != NULL) {
-			i--;
-			tilm_rg_add(mlp->rg, s->ln, s->bit, lut, i);
-			s = s->next;
+		if((varcount == 1) && (mpz_get_ui(contents) == 2)) {
+			/* Identity - merge nets */
+			tilm_result_add_merge(mlp->result, i, s->ln, s->bit);
+			lut = NULL;
+		} else {
+			lut = TILM_CALL_CREATE(mlp->p, varcount, contents);
+		
+			i = varcount;
+			while(s != NULL) {
+				i--;
+				tilm_result_add_input(mlp->result, s->ln, s->bit, lut, i);
+				s = s->next;
+			}
+			assert(i == 0);
 		}
-		assert(i == 0);
+		
+		mpz_clear(contents);
 		
 		return lut;
 	} else {
@@ -329,7 +335,7 @@ static void *map_level(struct map_level_param *mlp, struct enumerated_signal *s)
 		positive = map_level(mlp, s->next);
 		
 		mux = new_mux(mlp->p);
-		tilm_rg_add(mlp->rg, s->ln, s->bit, mux, 0);
+		tilm_result_add_input(mlp->result, s->ln, s->bit, mux, 0);
 		TILM_CALL_CONNECT(mlp->p, negative, mux, 1);
 		TILM_CALL_CONNECT(mlp->p, positive, mux, 2);
 		
@@ -340,29 +346,22 @@ static void *map_level(struct map_level_param *mlp, struct enumerated_signal *s)
 struct tilm_result *tilm_shannon_map(struct tilm_param *p, struct llhdl_node *top)
 {
 	struct map_level_param mlp;
-	struct tilm_result *result;
 	int vectorsize;
-	void **out_luts;
 	int i;
+
+	vectorsize = llhdl_get_vectorsize(top);
 
 	mlp.p = p;
 	mlp.top = top;
-	mlp.rg = tilm_rg_new();
+	mlp.result = tilm_create_result(vectorsize);
 
-	vectorsize = llhdl_get_vectorsize(top);
-	out_luts = alloc_size(vectorsize*sizeof(void *));
-	
 	for(i=0;i<vectorsize;i++) {
 		mlp.e = enumeration_new();
 		mlp.bit = i;
 		enumerate(mlp.e, top, i);
-		out_luts[i] = map_level(&mlp, mlp.e->head);
+		mlp.result->out_insts[i] = map_level(&mlp, mlp.e->head);
 		enumeration_free(mlp.e);
 	}
-	
-	result = tilm_rg_generate(mlp.rg, out_luts, vectorsize);
-	
-	tilm_rg_free(mlp.rg);
 
-	return result;
+	return mlp.result;
 }

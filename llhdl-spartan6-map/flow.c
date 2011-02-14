@@ -30,6 +30,7 @@ struct flow_sc {
 	struct netlist_instance *gnd;
 };
 
+/* TODO: multiple clock support + move this function to libllhdl */
 static void find_clock(struct flow_sc *sc)
 {
 	struct llhdl_node *n;
@@ -178,14 +179,29 @@ static struct netlist_net *resolve_signal(struct flow_sc *sc, struct llhdl_node 
 	return sym->user;
 }
 
-static void *lut_create(int inputs, mpz_t contents, void *user)
+static struct netlist_instance *get_gnd_vcc(struct flow_sc *sc, int v)
+{
+	if(v) {
+		if(sc->vcc == NULL)
+			sc->vcc = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_VCC]);
+		return sc->vcc;
+	} else {
+		if(sc->gnd == NULL)
+			sc->gnd = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_GND]);
+		return sc->gnd;
+	}
+}
+
+static void *tc_create(int inputs, mpz_t contents, void *user)
 {
 	struct flow_sc *sc = user;
 	int primitive_type;
 	char val[17];
 	struct netlist_instance *inst;
 
-	assert(inputs > 0);
+	if(inputs == 0)
+		return get_gnd_vcc(sc, mpz_get_si(contents));
+	
 	assert(inputs < 7);
 	primitive_type = 0;
 	switch(inputs) {
@@ -219,7 +235,13 @@ static void *lut_create(int inputs, mpz_t contents, void *user)
 	return inst;
 }
 
-static void lut_connect(void *a, void *b, int n, void *user)
+static void *tc_create_fd(void *user)
+{
+	struct flow_sc *sc = user;
+	return netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_FD]);
+}
+
+static void tc_connect(void *a, void *b, int n, void *user)
 {
 	struct flow_sc *sc = user;
 	struct netlist_net *net;
@@ -229,90 +251,54 @@ static void lut_connect(void *a, void *b, int n, void *user)
 	netlist_add_branch(net, b, 0, n);
 }
 
+static void process_tilm_result(struct flow_sc *sc, struct llhdl_node *n, struct tilm_result *result)
+{
+	struct netlist_net *net;
+	int i;
+	struct tilm_input_assoc *a;
+
+	/* Connect outputs of the generated logic */
+	for(i=0;i<result->vectorsize;i++) {
+		net = resolve_signal(sc, n, i);
+		if(result->out_insts[i] != NULL)
+			netlist_add_branch(net, result->out_insts[i], 1, 0);
+		else
+			netlist_join(net, resolve_signal(sc, result->merges[i].signal, result->merges[i].bit));
+	}
+	
+	/* Connect inputs of the generated logic */
+	a = result->ihead;
+	while(a != NULL) {
+		net = resolve_signal(sc, a->signal, a->bit);
+		netlist_add_branch(net, a->inst, 0, a->n);
+		a = a->next;
+	}
+}
+
 static void map_lut(struct tilm_param *p, struct llhdl_node *n)
 {
 	struct flow_sc *sc = p->user;
 	struct tilm_result *result;
-	struct netlist_net *net;
-	int i;
 	
-	/* Run technology-independent LUT mapper */
 	result = tilm_map(p, n->p.signal.source);
-	
-	/* Connect outputs of the generated logic */
-	for(i=0;i<result->vectorsize;i++) {
-		net = resolve_signal(sc, n, i);
-		netlist_add_branch(net, result->out_luts[i], 1, 0);
-	}
-	
-	/* Connect inputs of the generated logic */
-	for(i=0;i<result->n_input_assoc;i++) {
-		net = resolve_signal(sc, result->input_assoc[i].signal, result->input_assoc[i].bit);
-		netlist_add_branch(net, result->input_assoc[i].lut, 0, result->input_assoc[i].n);
-	}
-	
+	process_tilm_result(sc, n, result);
 	tilm_free_result(result);
 }
 
-static void map_fd(struct flow_sc *sc, struct llhdl_node *n)
+static void map_fd(struct tilm_param_fd *p, struct llhdl_node *n)
 {
-	int i, size;
-	struct netlist_net *net;
-	struct netlist_instance *inst;
-	struct llhdl_node *n2;
-
-	size = llhdl_get_vectorsize(n);
-	for(i=0;i<size;i++) {
-		net = resolve_signal(sc, n, i);
-		n2 = n->p.signal.source;
-		while(n2->type == LLHDL_NODE_FD) {
-			inst = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_FD]);
-			netlist_add_branch(net, inst, 1, NETLIST_XIL_FD_Q);
-			netlist_add_branch(resolve_signal(sc, n2->p.fd.clock, 0), inst, 0, NETLIST_XIL_FD_C);
-
-			if(n2->p.fd.data->type == LLHDL_NODE_FD) {
-				net = netlist_m_create_net(sc->netlist);
-				netlist_add_branch(net, inst, 0, NETLIST_XIL_FD_D);
-			} else
-				/* Last data must be a signal */
-				netlist_add_branch(resolve_signal(sc, n2->p.fd.data, i), inst, 0, NETLIST_XIL_FD_D);
-		
-			n2 = n2->p.fd.data;
-		}
-	}
-}
-
-static struct netlist_instance *get_gnd_vcc(struct flow_sc *sc, int v)
-{
-	if(v) {
-		if(sc->vcc == NULL)
-			sc->vcc = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_VCC]);
-		return sc->vcc;
-	} else {
-		if(sc->gnd == NULL)
-			sc->gnd = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_GND]);
-		return sc->gnd;
-	}
-}
-
-static void map_connect(struct flow_sc *sc, struct llhdl_node *n)
-{
-	int i;
-	struct netlist_net *net;
-	struct llhdl_node *c;
+	struct flow_sc *sc = p->user;
+	struct tilm_result *result;
 	
-	// TODO: complete this. Perhaps should be moved to logic mapper?
-	c = n->p.signal.source;
-	assert(c->type == LLHDL_NODE_CONSTANT);
-	for(i=0;i<c->p.constant.vectorsize;i++) {
-		net = resolve_signal(sc, n, i);
-		netlist_add_branch(net, get_gnd_vcc(sc, mpz_tstbit(c->p.constant.value, i)), 1, 0);
-	}
+	result = tilm_map_fd(p, n->p.signal.source);
+	process_tilm_result(sc, n, result);
+	tilm_free_result(result);
 }
 
 static void map(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param)
 {
 	struct tilm_param tilm_param;
+	struct tilm_param_fd tilm_param_fd;
 	struct llhdl_node *n;
 	int purity;
 
@@ -320,10 +306,18 @@ static void map(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param)
 	tilm_param.mapper_id = lutmapper;
 	tilm_param.max_inputs = 6;
 	tilm_param.extra_mapper_param = lutmapper_extra_param;
-	tilm_param.create = lut_create;
-	tilm_param.connect = lut_connect;
+	tilm_param.create = tc_create;
+	tilm_param.connect = tc_connect;
 	tilm_param.user = sc;
 	
+	memset(&tilm_param_fd, 0, sizeof(tilm_param_fd));
+	tilm_param_fd.create = tc_create;
+	tilm_param_fd.create_fd = tc_create_fd;
+	tilm_param_fd.connect = tc_connect;
+	tilm_param_fd.d_pin = NETLIST_XIL_FD_D;
+	tilm_param_fd.c_pin = NETLIST_XIL_FD_C;
+	tilm_param_fd.user = sc;
+
 	n = sc->module->head;
 	while(n != NULL) {
 		assert(n->type == LLHDL_NODE_SIGNAL);
@@ -333,13 +327,11 @@ static void map(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param)
 				/* nothing to do */
 				break;
 			case LLHDL_PURE_CONNECT:
-				map_connect(sc, n);
-				break;
 			case LLHDL_PURE_LOGIC:
 				map_lut(&tilm_param, n);
 				break;
 			case LLHDL_PURE_FD:
-				map_fd(sc, n);
+				map_fd(&tilm_param_fd, n);
 				break;
 			case LLHDL_COMPOUND:
 				/* This should not happen */
