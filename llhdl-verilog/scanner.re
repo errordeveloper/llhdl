@@ -102,6 +102,7 @@ std:
 	"endmodule"		{ RET(TOK_ENDMODULE); }
 	"wire"			{ RET(TOK_REGWIRE); }
 	"reg"			{ RET(TOK_REGWIRE); }
+	"signed"		{ RET(TOK_SIGNED); }
 	"input"			{ RET(TOK_INPUT); }
 	"output"		{ RET(TOK_OUTPUT); }
 	"assign"		{ RET(TOK_ASSIGN); }
@@ -120,6 +121,8 @@ std:
 	(D* "'o" O+) |
 	(D* "'d" D+) |
 	(D* "'h" H+)		{ RET(TOK_VCON); }
+	
+	D+			{ RET(TOK_PINT); }
 
 	"="			{ RET(TOK_BASSIGN); }
 	"<="			{ RET(TOK_NBASSIGN); }
@@ -131,6 +134,8 @@ std:
 	":"			{ RET(TOK_COLON); }
 	"("			{ RET(TOK_LPAREN); }
 	")"			{ RET(TOK_RPAREN); }
+	"["			{ RET(TOK_LBRACKET); }
+	"]"			{ RET(TOK_RBRACKET); }
 	"&"			{ RET(TOK_AND); }
 	"~"			{ RET(TOK_TILDE); }
 	"^"			{ RET(TOK_XOR); }

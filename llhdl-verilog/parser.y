@@ -19,31 +19,58 @@ constant(C) ::= TOK_VCON(V). {
 	free(V);
 }
 
+%type width {int}
+
+width(W) ::= . {
+	W = 1;
+}
+
+width(W) ::= TOK_LBRACKET TOK_PINT(H) TOK_COLON TOK_PINT(L) TOK_RBRACKET . {
+	int h, l;
+	h = atoi(H);
+	l = atoi(L);
+	if(l != 0) {
+		fprintf(stderr, "Right half of width specifier must be 0\n");
+		exit(EXIT_FAILURE);
+	}
+	W = h - l + 1;
+}
+
+%type sgn {int}
+
+sgn(N) ::= . {
+	N = 0;
+}
+
+sgn(N) ::= TOK_SIGNED . {
+	N = 1;
+}
+
 %type newsignal {struct verilog_signal *}
 %destructor newsignal { verilog_free_signal(outm, $$); }
 
-newsignal(S) ::= TOK_REGWIRE TOK_ID(I). {
-	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_REGWIRE, I, 1, 0);
+newsignal(S) ::= TOK_REGWIRE sgn(N) width(W) TOK_ID(I). {
+	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_REGWIRE, I, W, N);
 	free(I);
 }
 
-newsignal(S) ::= TOK_OUTPUT TOK_ID(I). {
-	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_OUTPUT, I, 1, 0);
+newsignal(S) ::= TOK_OUTPUT sgn(N) width(W) TOK_ID(I). {
+	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_OUTPUT, I, W, N);
 	free(I);
 }
 
-newsignal(S) ::= TOK_INPUT TOK_ID(I). {
-	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_INPUT, I, 1, 0);
+newsignal(S) ::= TOK_INPUT sgn(N) width(W) TOK_ID(I). {
+	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_INPUT, I, W, N);
 	free(I);
 }
 
-newsignal(S) ::= TOK_OUTPUT TOK_REGWIRE TOK_ID(I). {
-	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_OUTPUT, I, 1, 0);
+newsignal(S) ::= TOK_OUTPUT TOK_REGWIRE sgn(N) width(W) TOK_ID(I). {
+	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_OUTPUT, I, W, N);
 	free(I);
 }
 
-newsignal(S) ::= TOK_INPUT TOK_REGWIRE TOK_ID(I). {
-	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_INPUT, I, 1, 0);
+newsignal(S) ::= TOK_INPUT TOK_REGWIRE sgn(N) width(W) TOK_ID(I). {
+	S = verilog_new_update_signal(outm, VERILOG_SIGNAL_INPUT, I, W, N);
 	free(I);
 }
 
