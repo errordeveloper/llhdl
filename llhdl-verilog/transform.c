@@ -45,6 +45,54 @@ static void transfer_signals(struct llhdl_module *lm, struct verilog_module *vm)
 	}
 }
 
+struct enumerated_output {
+	struct llhdl_node *signal;
+	struct enumerated_output *next;
+};
+
+struct compile_statement_param {
+	int bl;
+	struct llhdl_module *lm;
+	struct enumerated_output *ohead;
+};
+
+static int enumerate_output_is_in(struct compile_statement_param *csp, struct llhdl_node *signal)
+{
+	struct enumerated_output *o;
+	
+	o = csp->ohead;
+	while(o != NULL) {
+		if(o->signal == signal)
+			return 1;
+		o = o->next;
+	}
+	return 0;
+}
+
+static void enumerate_output(struct compile_statement_param *csp, struct llhdl_node *signal)
+{
+	struct enumerated_output *o;
+	
+	if(enumerate_output_is_in(csp, signal))
+		return;
+	o = alloc_type(struct enumerated_output);
+	o->signal = signal;
+	o->next = csp->ohead;
+	csp->ohead = o;
+}
+
+static void free_enumerated_outputs(struct compile_statement_param *csp)
+{
+	struct enumerated_output *o1, *o2;
+	
+	o1 = csp->ohead;
+	while(o1 != NULL) {
+		o2 = o1->next;
+		free(o1);
+		o1 = o2;
+	}
+}
+
 static struct llhdl_node *compile_node(struct verilog_node *n)
 {
 	struct llhdl_node *r;
@@ -99,11 +147,6 @@ static struct llhdl_node *compile_node(struct verilog_node *n)
 	return r;
 }
 
-struct compile_statement_param {
-	int bl;
-	struct llhdl_module *lm;
-};
-
 struct compile_condition {
 	struct llhdl_node *expr;
 	int negate;
@@ -136,6 +179,7 @@ static void compile_assignment(struct compile_statement_param *csp, struct veril
 	struct compile_condition *condition;
 
 	ls = s->p.assignment.target->llhdl_signal;
+	enumerate_output(csp, ls);
 	expr = compile_node(s->p.assignment.source);
 
 	target = &ls->p.signal.source;
@@ -209,6 +253,18 @@ static void compile_statements(struct compile_statement_param *csp, struct veril
 	}
 }
 
+static void register_outputs(struct compile_statement_param *csp, struct llhdl_node *clock)
+{
+	struct enumerated_output *o;
+	
+	o = csp->ohead;
+	while(o != NULL) {
+		assert(o->signal->type == LLHDL_NODE_SIGNAL);
+		o->signal->p.signal.source = llhdl_create_fd(clock, o->signal->p.signal.source);
+		o = o->next;
+	}
+}
+
 static void transfer_process(struct llhdl_module *lm, struct verilog_process *p)
 {
 	int bl;
@@ -222,8 +278,13 @@ static void transfer_process(struct llhdl_module *lm, struct verilog_process *p)
 	
 	csp.bl = bl == VERILOG_BL_BLOCKING;
 	csp.lm = lm;
+	csp.ohead = NULL;
 	
 	compile_statements(&csp, p->head, NULL);
+	if(p->clock != NULL)
+		register_outputs(&csp, p->clock->llhdl_signal);
+	
+	free_enumerated_outputs(&csp);
 }
 
 static void transfer_processes(struct llhdl_module *lm, struct verilog_module *vm)
