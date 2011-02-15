@@ -50,17 +50,37 @@ struct enumerated_output {
 	struct enumerated_output *next;
 };
 
-struct compile_statement_param {
-	int bl;
-	struct llhdl_module *lm;
-	struct enumerated_output *ohead;
+struct output_enumerator {
+	struct enumerated_output *head;
 };
 
-static int enumerate_output_is_in(struct compile_statement_param *csp, struct llhdl_node *signal)
+static struct output_enumerator *create_output_enumerator()
+{
+	struct output_enumerator *e;
+	
+	e = alloc_type(struct output_enumerator);
+	e->head = NULL;
+	return e;
+}
+
+static void free_output_enumerator(struct output_enumerator *e)
+{
+	struct enumerated_output *o1, *o2;
+	
+	o1 = e->head;
+	while(o1 != NULL) {
+		o2 = o1->next;
+		free(o1);
+		o1 = o2;
+	}
+	free(e);
+}
+
+static int enumerate_output_is_in(struct output_enumerator *e, struct llhdl_node *signal)
 {
 	struct enumerated_output *o;
 	
-	o = csp->ohead;
+	o = e->head;
 	while(o != NULL) {
 		if(o->signal == signal)
 			return 1;
@@ -69,31 +89,30 @@ static int enumerate_output_is_in(struct compile_statement_param *csp, struct ll
 	return 0;
 }
 
-static void enumerate_output(struct compile_statement_param *csp, struct llhdl_node *signal)
+static void enumerate_output(struct output_enumerator *e, struct llhdl_node *signal)
 {
 	struct enumerated_output *o;
 	
-	if(enumerate_output_is_in(csp, signal))
+	if(enumerate_output_is_in(e, signal))
 		return;
 	o = alloc_type(struct enumerated_output);
 	o->signal = signal;
-	o->next = csp->ohead;
-	csp->ohead = o;
+	o->next = e->head;
+	e->head = o;
 }
 
-static void free_enumerated_outputs(struct compile_statement_param *csp)
+static void enumerate_merge(struct output_enumerator *resulting, struct output_enumerator *tomerge)
 {
-	struct enumerated_output *o1, *o2;
+	struct enumerated_output *o;
 	
-	o1 = csp->ohead;
-	while(o1 != NULL) {
-		o2 = o1->next;
-		free(o1);
-		o1 = o2;
+	o = tomerge->head;
+	while(o != NULL) {
+		enumerate_output(resulting, o->signal);
+		o = o->next;
 	}
 }
 
-static struct llhdl_node *compile_node(struct verilog_node *n)
+static struct llhdl_node *compile_node(struct output_enumerator *e, struct verilog_node *n)
 {
 	struct llhdl_node *r;
 	
@@ -108,14 +127,17 @@ static struct llhdl_node *compile_node(struct verilog_node *n)
 		case VERILOG_NODE_SIGNAL: {
 			struct verilog_signal *s;
 			s = n->branches[0];
-			r = s->llhdl_signal;
+			if((e != NULL) && (enumerate_output_is_in(e, s->llhdl_signal)))
+				r = llhdl_dup(s->llhdl_signal->p.signal.source);
+			else
+				r = s->llhdl_signal;
 			break;
 		}
 		case VERILOG_NODE_EQL: {
 			struct llhdl_node *operands[2];
 			struct llhdl_node *xor;
-			operands[0] = compile_node(n->branches[0]);
-			operands[1] = compile_node(n->branches[1]);
+			operands[0] = compile_node(e, n->branches[0]);
+			operands[1] = compile_node(e, n->branches[1]);
 			xor = llhdl_create_logic(LLHDL_LOGIC_XOR, operands);
 			r = llhdl_create_logic(LLHDL_LOGIC_NOT, &xor);
 			break;
@@ -130,7 +152,7 @@ static struct llhdl_node *compile_node(struct verilog_node *n)
 			arity = verilog_get_node_arity(n->type);
 			operands = alloc_size(arity*sizeof(struct llhdl_node *));
 			for(i=0;i<arity;i++)
-				operands[i] = compile_node(n->branches[i]);
+				operands[i] = compile_node(e, n->branches[i]);
 			r = llhdl_create_logic(convert_logictype(n->type), operands);
 			free(operands);
 			break;
@@ -139,7 +161,7 @@ static struct llhdl_node *compile_node(struct verilog_node *n)
 			struct llhdl_node *operands[3];
 			int i;
 			for(i=0;i<3;i++)
-				operands[i] = compile_node(n->branches[i]);
+				operands[i] = compile_node(e, n->branches[i]);
 			r = llhdl_create_mux(2, operands[0], &operands[1]);
 			break;
 		}
@@ -147,13 +169,18 @@ static struct llhdl_node *compile_node(struct verilog_node *n)
 	return r;
 }
 
+struct compile_statement_param {
+	int bl;
+	struct llhdl_module *lm;
+};
+
 struct compile_condition {
 	struct llhdl_node *expr;
 	int negate;
 	struct compile_condition *next;
 };
 
-static void compile_statements(struct compile_statement_param *csp, struct verilog_statement *s, struct compile_condition *conditions);
+static struct output_enumerator *compile_statements(struct compile_statement_param *csp, struct verilog_statement *s, struct compile_condition *conditions, struct output_enumerator *e);
 
 static struct llhdl_node *generate_cond_muxes(struct compile_condition *condition, struct llhdl_node *others, struct llhdl_node *final)
 {
@@ -171,7 +198,7 @@ static struct llhdl_node *generate_cond_muxes(struct compile_condition *conditio
 	return llhdl_create_mux(2, llhdl_dup(condition->expr), sources);
 }
 
-static void compile_assignment(struct compile_statement_param *csp, struct verilog_statement *s, struct compile_condition *conditions)
+static struct llhdl_node *compile_assignment(struct compile_statement_param *csp, struct verilog_statement *s, struct compile_condition *conditions, struct output_enumerator *e)
 {
 	struct llhdl_node *ls;
 	struct llhdl_node *expr;
@@ -179,8 +206,7 @@ static void compile_assignment(struct compile_statement_param *csp, struct veril
 	struct compile_condition *condition;
 
 	ls = s->p.assignment.target->llhdl_signal;
-	enumerate_output(csp, ls);
-	expr = compile_node(s->p.assignment.source);
+	expr = compile_node(csp->bl ? e : NULL, s->p.assignment.source);
 
 	target = &ls->p.signal.source;
 	condition = conditions;
@@ -204,12 +230,15 @@ static void compile_assignment(struct compile_statement_param *csp, struct veril
 	
 	llhdl_free_node(*target);
 	*target = expr;
+	
+	return ls;
 }
 
-static void compile_condition(struct compile_statement_param *csp, struct verilog_statement *s, struct compile_condition *conditions)
+static struct output_enumerator *compile_condition(struct compile_statement_param *csp, struct verilog_statement *s, struct compile_condition *conditions, struct output_enumerator *e)
 {
 	struct compile_condition new_condition;
 	struct compile_condition *last, *head;
+	struct output_enumerator *e1, *e2;
 
 	if(conditions == NULL) {
 		head = &new_condition;
@@ -222,28 +251,40 @@ static void compile_condition(struct compile_statement_param *csp, struct verilo
 		last->next = &new_condition;
 	}
 	
-	new_condition.expr = compile_node(s->p.condition.condition);
+	new_condition.expr = compile_node(csp->bl ? e : NULL, s->p.condition.condition);
 	new_condition.next = NULL;
 	
 	new_condition.negate = 1;
-	compile_statements(csp, s->p.condition.negative, head);
+	e1 = compile_statements(csp, s->p.condition.negative, head, e);
 	new_condition.negate = 0;
-	compile_statements(csp, s->p.condition.positive, head);
+	e2 = compile_statements(csp, s->p.condition.positive, head, e);
 
 	llhdl_free_node(new_condition.expr);
 	if(last != NULL)
 		last->next = NULL;
+	
+	enumerate_merge(e1, e2);
+	free_output_enumerator(e2);
+	return e1;
 }
 
-static void compile_statements(struct compile_statement_param *csp, struct verilog_statement *s, struct compile_condition *conditions)
+static struct output_enumerator *compile_statements(struct compile_statement_param *csp, struct verilog_statement *s, struct compile_condition *conditions, struct output_enumerator *e)
 {
+	struct llhdl_node *n;
+	struct output_enumerator *e1, *e2;
+	
+	e1 = create_output_enumerator();
+	enumerate_merge(e1, e);
 	while(s != NULL) {
 		switch(s->type) {
 			case VERILOG_STATEMENT_ASSIGNMENT:
-				compile_assignment(csp, s, conditions);
+				n = compile_assignment(csp, s, conditions, e1);
+				enumerate_output(e1, n);
 				break;
 			case VERILOG_STATEMENT_CONDITION:
-				compile_condition(csp, s, conditions);
+				e2 = compile_condition(csp, s, conditions, e1);
+				enumerate_merge(e1, e2);
+				free_output_enumerator(e2);
 				break;
 			default:
 				assert(0);
@@ -251,13 +292,14 @@ static void compile_statements(struct compile_statement_param *csp, struct veril
 		}
 		s = s->next;
 	}
+	return e1;
 }
 
-static void register_outputs(struct compile_statement_param *csp, struct llhdl_node *clock)
+static void register_outputs(struct output_enumerator *e, struct llhdl_node *clock)
 {
 	struct enumerated_output *o;
 	
-	o = csp->ohead;
+	o = e->head;
 	while(o != NULL) {
 		assert(o->signal->type == LLHDL_NODE_SIGNAL);
 		o->signal->p.signal.source = llhdl_create_fd(clock, o->signal->p.signal.source);
@@ -269,6 +311,7 @@ static void transfer_process(struct llhdl_module *lm, struct verilog_process *p)
 {
 	int bl;
 	struct compile_statement_param csp;
+	struct output_enumerator *e1, *e2;
 	
 	bl = verilog_process_blocking(p);
 	if(bl == VERILOG_BL_MIXED) {
@@ -278,13 +321,15 @@ static void transfer_process(struct llhdl_module *lm, struct verilog_process *p)
 	
 	csp.bl = bl == VERILOG_BL_BLOCKING;
 	csp.lm = lm;
-	csp.ohead = NULL;
 	
-	compile_statements(&csp, p->head, NULL);
+	e1 = create_output_enumerator();
+	e2 = compile_statements(&csp, p->head, NULL, e1);
+	free_output_enumerator(e1);
+
 	if(p->clock != NULL)
-		register_outputs(&csp, p->clock->llhdl_signal);
-	
-	free_enumerated_outputs(&csp);
+		register_outputs(e2, p->clock->llhdl_signal);
+
+	free_output_enumerator(e2);
 }
 
 static void transfer_processes(struct llhdl_module *lm, struct verilog_module *vm)
