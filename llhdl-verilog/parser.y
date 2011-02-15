@@ -29,11 +29,34 @@ width(W) ::= TOK_LBRACKET TOK_PINT(H) TOK_COLON TOK_PINT(L) TOK_RBRACKET . {
 	int h, l;
 	h = atoi(H);
 	l = atoi(L);
+	free(H);
+	free(L);
 	if(l != 0) {
 		fprintf(stderr, "Right half of width specifier must be 0\n");
 		exit(EXIT_FAILURE);
 	}
 	W = h - l + 1;
+}
+
+%include {
+	struct slice {
+		int start;
+		int end;
+	};
+}
+
+%type slice {struct slice}
+
+slice(C) ::= TOK_LBRACKET TOK_PINT(H) TOK_COLON TOK_PINT(L) TOK_RBRACKET . {
+	C.start = atoi(L);
+	C.end = atoi(H);
+	free(H);
+	free(L);
+}
+
+slice(C) ::= TOK_LBRACKET TOK_PINT(B) TOK_RBRACKET . {
+	C.start = C.end = atoi(B);
+	free(B);
 }
 
 %type sgn {int}
@@ -94,6 +117,10 @@ node(N) ::= constant(C). {
 
 node(N) ::= signal(S). {
 	N = verilog_new_signal_node(S);
+}
+
+node(N) ::= signal(S) slice(C). {
+	N = verilog_new_slice_node(verilog_new_signal_node(S), C.start, C.end);
 }
 
 %left TOK_QUESTION TOK_COLON.

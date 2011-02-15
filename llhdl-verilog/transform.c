@@ -133,6 +133,14 @@ static struct llhdl_node *compile_node(struct output_enumerator *e, struct veril
 				r = s->llhdl_signal;
 			break;
 		}
+		case VERILOG_NODE_SLICE: {
+			struct llhdl_slice slice;
+			slice.source = compile_node(e, n->branches[0]);
+			slice.start = (int)n->branches[1];
+			slice.end = (int)n->branches[2];
+			r = llhdl_create_vect(llhdl_get_sign(slice.source), 1, &slice);
+			break;
+		}
 		case VERILOG_NODE_EQL: {
 			struct llhdl_node *operands[2];
 			struct llhdl_node *xor;
