@@ -165,14 +165,30 @@ static void compile_assignment(struct compile_statement_param *csp, struct veril
 static void compile_condition(struct compile_statement_param *csp, struct verilog_statement *s, struct compile_condition *conditions)
 {
 	struct compile_condition new_condition;
+	struct compile_condition *last, *head;
+
+	if(conditions == NULL) {
+		head = &new_condition;
+		last = NULL;
+	} else {
+		head = conditions;
+		last = conditions;
+		while(last->next != NULL)
+			last = last->next;
+		last->next = &new_condition;
+	}
 	
 	new_condition.expr = compile_node(s->p.condition.condition);
-	new_condition.next = conditions;
+	new_condition.next = NULL;
+	
 	new_condition.negate = 1;
-	compile_statements(csp, s->p.condition.negative, &new_condition);
+	compile_statements(csp, s->p.condition.negative, head);
 	new_condition.negate = 0;
-	compile_statements(csp, s->p.condition.positive, &new_condition);
+	compile_statements(csp, s->p.condition.positive, head);
+
 	llhdl_free_node(new_condition.expr);
+	if(last != NULL)
+		last->next = NULL;
 }
 
 static void compile_statements(struct compile_statement_param *csp, struct verilog_statement *s, struct compile_condition *conditions)
