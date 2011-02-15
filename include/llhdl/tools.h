@@ -19,7 +19,8 @@ void llhdl_update_purity(int *previous, int new);
 void llhdl_update_purity_node(int *previous, int type);
 int llhdl_is_pure(struct llhdl_node *n);
 
-int llhdl_compare_constants(struct llhdl_node *n1, struct llhdl_node *n2);
+struct llhdl_node *llhdl_dup(struct llhdl_node *n);
+int llhdl_equiv(struct llhdl_node *a, struct llhdl_node *b);
 
 int llhdl_get_sign(struct llhdl_node *n);
 int llhdl_get_vectorsize(struct llhdl_node *n);

@@ -3,6 +3,8 @@
 
 #include <gmp.h>
 
+#include <llhdl/structure.h>
+
 struct verilog_constant {
 	int vectorsize;
 	int sign;
@@ -20,7 +22,7 @@ struct verilog_signal {
 	int vectorsize;
 	int sign;
 	struct verilog_signal *next;
-	void *user;
+	struct llhdl_node *llhdl_signal;	/* < transformed LLHDL signal */
 	char name[];
 };
 

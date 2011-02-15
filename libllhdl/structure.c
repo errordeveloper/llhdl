@@ -186,6 +186,11 @@ void llhdl_free_node(struct llhdl_node *n)
 			for(i=0;i<arity;i++)
 				llhdl_free_node(n->p.logic.operands[i]);
 			break;
+		case LLHDL_NODE_MUX:
+			llhdl_free_node(n->p.mux.select);
+			for(i=0;i<n->p.mux.nsources;i++)
+				llhdl_free_node(n->p.mux.sources[i]);
+			break;
 		case LLHDL_NODE_FD:
 			llhdl_free_node(n->p.fd.clock);
 			llhdl_free_node(n->p.fd.data);
