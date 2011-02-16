@@ -136,6 +136,8 @@ std:
 	")"			{ RET(TOK_RPAREN); }
 	"["			{ RET(TOK_LBRACKET); }
 	"]"			{ RET(TOK_RBRACKET); }
+	"{"			{ RET(TOK_LCBRACKET); }
+	"}"			{ RET(TOK_RCBRACKET); }
 	"&"			{ RET(TOK_AND); }
 	"~"			{ RET(TOK_TILDE); }
 	"^"			{ RET(TOK_XOR); }

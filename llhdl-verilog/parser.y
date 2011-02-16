@@ -123,6 +123,26 @@ node(N) ::= signal(S) slice(C). {
 	N = verilog_new_slice_node(verilog_new_signal_node(S), C.start, C.end);
 }
 
+%type lnode {struct verilog_node *}
+%destructor lnode { verilog_free_node($$); }
+
+lnode(N) ::= node(A) TOK_COMMA node(B). {
+	N = verilog_new_cat_node(A, B);
+}
+
+lnode(N) ::= lnode(A) TOK_COMMA node(B). {
+	A->branches[1] = verilog_new_cat_node(A->branches[1], B);
+	N = A;
+}
+
+node(N) ::= TOK_LCBRACKET node(A) TOK_RCBRACKET. {
+	N = A;
+}
+
+node(N) ::= TOK_LCBRACKET lnode(A) TOK_RCBRACKET. {
+	N = A;
+}
+
 %left TOK_QUESTION TOK_COLON.
 %left TOK_TILDE.
 %left TOK_OR TOK_AND TOK_XOR.

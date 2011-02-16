@@ -138,6 +138,7 @@ int verilog_get_node_arity(int type)
 		case VERILOG_NODE_CONSTANT: return 1;
 		case VERILOG_NODE_SIGNAL: return 1;
 		case VERILOG_NODE_SLICE: return 1;
+		case VERILOG_NODE_CAT: return 2;
 		case VERILOG_NODE_EQL: return 2;
 		case VERILOG_NODE_NEQ: return 2;
 		case VERILOG_NODE_OR: return 2;
@@ -180,6 +181,18 @@ struct verilog_node *verilog_new_slice_node(struct verilog_node *source, int sta
 	n->branches[0] = source;
 	n->branches[1] = (void *)start;
 	n->branches[2] = (void *)end;
+	
+	return n;
+}
+
+struct verilog_node *verilog_new_cat_node(struct verilog_node *a, struct verilog_node *b)
+{
+	struct verilog_node *n;
+	
+	n = alloc_size(sizeof(int)+2*sizeof(void *));
+	n->type = VERILOG_NODE_CAT;
+	n->branches[0] = a;
+	n->branches[1] = b;
 	
 	return n;
 }
