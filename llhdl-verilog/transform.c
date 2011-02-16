@@ -145,10 +145,10 @@ static struct llhdl_node *compile_node(struct output_enumerator *e, struct veril
 			struct llhdl_slice slice[2];
 			slice[0].source = compile_node(e, n->branches[0]);
 			slice[0].start = 0;
-			slice[0].end = llhdl_get_vectorsize(slice[0].source);
+			slice[0].end = llhdl_get_vectorsize(slice[0].source) - 1;
 			slice[1].source = compile_node(e, n->branches[1]);
 			slice[1].start = 0;
-			slice[1].end = llhdl_get_vectorsize(slice[1].source);
+			slice[1].end = llhdl_get_vectorsize(slice[1].source) - 1;
 			r = llhdl_create_vect(llhdl_get_sign(slice[0].source) && llhdl_get_sign(slice[1].source), 2, slice);
 			break;
 		}
