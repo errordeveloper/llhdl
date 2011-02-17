@@ -83,6 +83,18 @@ primitives = [
 		inputs = [(1, "I0"), (1, "I1"), (1, "I2"), (1, "I3"), (1, "I4"), (1, "I5")],
 		outputs = [(1, "O")]
 	),
+	Primitive(
+		name = "MUXCY",
+		attributes = [],
+		inputs = [(1, "S"), (1, "DI"), (1, "CI")],
+		outputs = [(1, "O")]
+	),
+	Primitive(
+		name = "XORCY",
+		attributes = [],
+		inputs = [(1, "LI"), (1, "CI")],
+		outputs = [(1, "O")]
+	),
 ]
 
 def print_io_list(l):
