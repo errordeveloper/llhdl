@@ -11,6 +11,11 @@
 %token_type {void *}
 %token_destructor { free($$); }
 
+%syntax_error {
+	fprintf(stderr, "Syntax error in Verilog input\n");
+	exit(EXIT_FAILURE);
+}
+
 %type constant {struct verilog_constant *}
 %destructor constant { verilog_free_constant($$); }
 
@@ -318,7 +323,7 @@ io(I) ::= io TOK_COMMA newsignal(S). { I = S; }
 io(I) ::= newsignal(S). { I = S; }
 io ::= .
 
-body(B) ::= body newsignal(N). { B = N; }
+body(B) ::= body newsignal(N) TOK_SEMICOLON. { B = N; }
 body(B) ::= body process(P). { B = P; }
 body ::= .
 
