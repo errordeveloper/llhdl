@@ -37,6 +37,9 @@ enum {
 	VERILOG_NODE_AND,
 	VERILOG_NODE_TILDE,
 	VERILOG_NODE_XOR,
+	VERILOG_NODE_ADD,
+	VERILOG_NODE_SUB,
+	VERILOG_NODE_MUL,
 	VERILOG_NODE_ALT,
 };
 
@@ -96,10 +99,6 @@ void verilog_free_signal(struct verilog_module *m, struct verilog_signal *s);
 void verilog_free_signal_list(struct verilog_signal *head);
 
 int verilog_get_node_arity(int type);
-struct verilog_node *verilog_new_constant_node(struct verilog_constant *constant);
-struct verilog_node *verilog_new_signal_node(struct verilog_signal *signal);
-struct verilog_node *verilog_new_slice_node(struct verilog_node *source, int start, int end);
-struct verilog_node *verilog_new_cat_node(struct verilog_node *a, struct verilog_node *b);
 struct verilog_node *verilog_new_op_node(int type);
 void verilog_free_node(struct verilog_node *n);
 

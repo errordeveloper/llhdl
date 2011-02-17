@@ -34,6 +34,17 @@ static int convert_logictype(int verilog_type)
 	return 0;
 }
 
+static int convert_arithtype(int verilog_type)
+{
+	switch(verilog_type) {
+		case VERILOG_NODE_ADD: return LLHDL_ARITH_ADD;
+		case VERILOG_NODE_SUB: return LLHDL_ARITH_SUB;
+		case VERILOG_NODE_MUL: return LLHDL_ARITH_MUL;
+	}
+	assert(0);
+	return 0;
+}
+
 static void transfer_signals(struct llhdl_module *lm, struct verilog_module *vm)
 {
 	struct verilog_signal *s;
@@ -174,6 +185,15 @@ static struct llhdl_node *compile_node(struct output_enumerator *e, struct veril
 				operands[i] = compile_node(e, n->branches[i]);
 			r = llhdl_create_logic(convert_logictype(n->type), operands);
 			free(operands);
+			break;
+		}
+		case VERILOG_NODE_ADD:
+		case VERILOG_NODE_SUB:
+		case VERILOG_NODE_MUL: {
+			struct llhdl_node *operands[2];
+			operands[0] = compile_node(e, n->branches[0]);
+			operands[1] = compile_node(e, n->branches[1]);
+			r = llhdl_create_arith(convert_arithtype(n->type), operands[0], operands[1]);
 			break;
 		}
 		case VERILOG_NODE_ALT: {

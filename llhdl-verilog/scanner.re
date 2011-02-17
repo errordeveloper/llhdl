@@ -117,10 +117,10 @@ std:
 
 	L (L|D)*		{ RET(TOK_ID); }
 
-	(D* "'b" B+) |
-	(D* "'o" O+) |
-	(D* "'d" D+) |
-	(D* "'h" H+)		{ RET(TOK_VCON); }
+	(D* "'" "s"? "b" B+) |
+	(D* "'" "s"? "o" O+) |
+	(D* "'" "s"? "d" D+) |
+	(D* "'" "s"? "h" H+)	{ RET(TOK_VCON); }
 	
 	D+			{ RET(TOK_PINT); }
 
@@ -142,6 +142,8 @@ std:
 	"~"			{ RET(TOK_TILDE); }
 	"^"			{ RET(TOK_XOR); }
 	"|"			{ RET(TOK_OR); }
+	"+"			{ RET(TOK_PLUS); }
+	"-"			{ RET(TOK_MINUS); }
 	"?"			{ RET(TOK_QUESTION); }
 
 	[ \t\v\f]+		{ goto std; }

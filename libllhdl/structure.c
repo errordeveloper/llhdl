@@ -162,6 +162,7 @@ struct llhdl_node *llhdl_create_arith(int op, struct llhdl_node *a, struct llhdl
 	struct llhdl_node *n;
 
 	n = alloc_base_node(sizeof(struct llhdl_node_arith), LLHDL_NODE_ARITH);
+	n->p.arith.op = op;
 	n->p.arith.a = a;
 	n->p.arith.b = b;
 	return n;

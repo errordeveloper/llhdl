@@ -19,6 +19,11 @@ constant(C) ::= TOK_VCON(V). {
 	free(V);
 }
 
+constant(C) ::= TOK_PINT(V). {
+	C = verilog_new_constant_str(V);
+	free(V);
+}
+
 %type width {int}
 
 width(W) ::= . {
@@ -112,26 +117,40 @@ signal(S) ::= TOK_ID(I). {
 %destructor node { verilog_free_node($$); }
 
 node(N) ::= constant(C). {
-	N = verilog_new_constant_node(C);
+	N = verilog_new_op_node(VERILOG_NODE_CONSTANT);
+	N->branches[0] = C;
 }
 
 node(N) ::= signal(S). {
-	N = verilog_new_signal_node(S);
+	N = verilog_new_op_node(VERILOG_NODE_SIGNAL);
+	N->branches[0] = S;
 }
 
 node(N) ::= signal(S) slice(C). {
-	N = verilog_new_slice_node(verilog_new_signal_node(S), C.start, C.end);
+	struct verilog_node *sig;
+	sig = verilog_new_op_node(VERILOG_NODE_SIGNAL);
+	sig->branches[0] = S;
+	N = verilog_new_op_node(VERILOG_NODE_SLICE);
+	N->branches[0] = sig;
+	N->branches[1] = (void *)C.start;
+	N->branches[2] = (void *)C.end;
 }
 
 %type lnode {struct verilog_node *}
 %destructor lnode { verilog_free_node($$); }
 
 lnode(N) ::= node(A) TOK_COMMA node(B). {
-	N = verilog_new_cat_node(A, B);
+	N = verilog_new_op_node(VERILOG_NODE_CAT);
+	N->branches[0] = A;
+	N->branches[1] = B;
 }
 
 lnode(N) ::= lnode(A) TOK_COMMA node(B). {
-	A->branches[1] = verilog_new_cat_node(A->branches[1], B);
+	struct verilog_node *nn;
+	nn = verilog_new_op_node(VERILOG_NODE_CAT);
+	nn->branches[0] = A->branches[1];
+	nn->branches[1] = B;
+	A->branches[1] = nn;
 	N = A;
 }
 
@@ -144,9 +163,13 @@ node(N) ::= TOK_LCBRACKET lnode(A) TOK_RCBRACKET. {
 }
 
 %left TOK_QUESTION TOK_COLON.
-%left TOK_TILDE.
-%left TOK_OR TOK_AND TOK_XOR.
+%left TOK_OR.
+%left TOK_XOR.
+%left TOK_AND.
 %left TOK_EQL TOK_NEQ.
+%left TOK_PLUS TOK_MINUS.
+%left TOK_STAR.
+%left TOK_TILDE.
 
 node(N) ::= node(A) TOK_EQL node(B). {
 	N = verilog_new_op_node(VERILOG_NODE_EQL);
@@ -179,6 +202,24 @@ node(N) ::= TOK_TILDE node(A). {
 
 node(N) ::= node(A) TOK_XOR node(B). {
 	N = verilog_new_op_node(VERILOG_NODE_XOR);
+	N->branches[0] = A;
+	N->branches[1] = B;
+}
+
+node(N) ::= node(A) TOK_PLUS node(B). {
+	N = verilog_new_op_node(VERILOG_NODE_ADD);
+	N->branches[0] = A;
+	N->branches[1] = B;
+}
+
+node(N) ::= node(A) TOK_MINUS node(B). {
+	N = verilog_new_op_node(VERILOG_NODE_SUB);
+	N->branches[0] = A;
+	N->branches[1] = B;
+}
+
+node(N) ::= node(A) TOK_STAR node(B). {
+	N = verilog_new_op_node(VERILOG_NODE_MUL);
 	N->branches[0] = A;
 	N->branches[1] = B;
 }

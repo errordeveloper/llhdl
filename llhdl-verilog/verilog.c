@@ -37,7 +37,11 @@ struct verilog_constant *verilog_new_constant_str(char *str)
 		*q = 0;
 		q++;
 		c->vectorsize = atoi(str);
-		c->sign = 0; // TODO
+		c->sign = 0;
+		if(*q == 's') {
+			c->sign = 1;
+			q++;
+		}
 		switch(*q) {
 			case 'b':
 				base = 2;
@@ -52,7 +56,8 @@ struct verilog_constant *verilog_new_constant_str(char *str)
 				base = 16;
 				break;
 			default:
-				assert(0);
+				fprintf(stderr, "Invalid base qualifier: %c\n", *q);
+				exit(EXIT_FAILURE);
 				break;
 		}
 		str = q+1;
@@ -137,7 +142,7 @@ int verilog_get_node_arity(int type)
 	switch(type) {
 		case VERILOG_NODE_CONSTANT: return 1;
 		case VERILOG_NODE_SIGNAL: return 1;
-		case VERILOG_NODE_SLICE: return 1;
+		case VERILOG_NODE_SLICE: return 3;
 		case VERILOG_NODE_CAT: return 2;
 		case VERILOG_NODE_EQL: return 2;
 		case VERILOG_NODE_NEQ: return 2;
@@ -145,56 +150,12 @@ int verilog_get_node_arity(int type)
 		case VERILOG_NODE_AND: return 2;
 		case VERILOG_NODE_TILDE: return 1;
 		case VERILOG_NODE_XOR: return 2;
+		case VERILOG_NODE_ADD: return 2;
+		case VERILOG_NODE_SUB: return 2;
+		case VERILOG_NODE_MUL: return 2;
 		case VERILOG_NODE_ALT: return 3;
 	}
 	assert(0);
-}
-
-struct verilog_node *verilog_new_constant_node(struct verilog_constant *constant)
-{
-	struct verilog_node *n;
-
-	n = alloc_size(sizeof(int)+sizeof(void *));
-	n->type = VERILOG_NODE_CONSTANT;
-	n->branches[0] = constant;
-
-	return n;
-}
-
-struct verilog_node *verilog_new_signal_node(struct verilog_signal *signal)
-{
-	struct verilog_node *n;
-
-	n = alloc_size(sizeof(int)+sizeof(void *));
-	n->type = VERILOG_NODE_SIGNAL;
-	n->branches[0] = signal;
-
-	return n;
-}
-
-struct verilog_node *verilog_new_slice_node(struct verilog_node *source, int start, int end)
-{
-	struct verilog_node *n;
-	
-	n = alloc_size(sizeof(int)+3*sizeof(void *));
-	n->type = VERILOG_NODE_SLICE;
-	n->branches[0] = source;
-	n->branches[1] = (void *)start;
-	n->branches[2] = (void *)end;
-	
-	return n;
-}
-
-struct verilog_node *verilog_new_cat_node(struct verilog_node *a, struct verilog_node *b)
-{
-	struct verilog_node *n;
-	
-	n = alloc_size(sizeof(int)+2*sizeof(void *));
-	n->type = VERILOG_NODE_CAT;
-	n->branches[0] = a;
-	n->branches[1] = b;
-	
-	return n;
 }
 
 struct verilog_node *verilog_new_op_node(int type)
@@ -217,7 +178,10 @@ void verilog_free_node(struct verilog_node *n)
 		int arity;
 		int i;
 
-		arity = verilog_get_node_arity(n->type);
+		if(n->type == VERILOG_NODE_SLICE)
+			arity = 1;
+		else
+			arity = verilog_get_node_arity(n->type);
 		for(i=0;i<arity;i++)
 			verilog_free_node(n->branches[i]);
 	}

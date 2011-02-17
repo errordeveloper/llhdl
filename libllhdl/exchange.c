@@ -444,7 +444,7 @@ static void write_expr(FILE *fd, struct llhdl_node *n)
 	switch(n->type) {
 		case LLHDL_NODE_CONSTANT:
 			if(n->p.constant.sign || (n->p.constant.vectorsize != 1))
-				fprintf(fd, "%d%c", n->p.constant.sign ? 's' : 'u', n->p.constant.vectorsize);
+				fprintf(fd, "%d%c", n->p.constant.vectorsize, n->p.constant.sign ? 's' : 'u');
 			mpz_out_str(fd, 10, n->p.constant.value);
 			break;
 		case LLHDL_NODE_SIGNAL:
