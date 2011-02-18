@@ -5,6 +5,106 @@
 #include <llhdl/structure.h>
 #include <llhdl/tools.h>
 
+#include <bd/bd.h>
+
+int bd_belongs_in_pure(int purity, int type)
+{
+	int is_connect;
+	
+	is_connect = (type == LLHDL_NODE_CONSTANT) || (type == LLHDL_NODE_SIGNAL) || (type == LLHDL_NODE_VECT);
+	switch(purity) {
+		case BD_PURE_EMPTY:
+		case BD_COMPOUND:
+		case BD_PURE_CONNECT:
+			return 1;
+		case BD_PURE_LOGIC:
+			return (type == LLHDL_NODE_LOGIC) || (type == LLHDL_NODE_MUX) || is_connect;
+		case BD_PURE_FD:
+			return (type == LLHDL_NODE_FD) || is_connect;
+		case BD_PURE_ARITH:
+			return (type == LLHDL_NODE_ARITH) || is_connect;
+		default:
+			assert(0);
+			return 0;
+	}
+}
+
+void bd_update_purity(int *previous, int new)
+{
+	if(new == BD_PURE_EMPTY) return;
+	if(new == BD_PURE_CONNECT) {
+		if(*previous == BD_PURE_EMPTY)
+			*previous = BD_PURE_CONNECT;
+		return;
+	}
+	if((*previous == BD_PURE_EMPTY) || (*previous == BD_PURE_CONNECT))
+		*previous = new;
+	else if(*previous != new)
+		*previous = BD_COMPOUND;
+}
+
+void bd_update_purity_node(int *previous, int type)
+{
+	switch(type) {
+		case LLHDL_NODE_CONSTANT:
+		case LLHDL_NODE_SIGNAL:
+		case LLHDL_NODE_VECT:
+			bd_update_purity(previous, BD_PURE_CONNECT);
+			break;
+		case LLHDL_NODE_LOGIC:
+		case LLHDL_NODE_MUX:
+			bd_update_purity(previous, BD_PURE_LOGIC);
+			break;
+		case LLHDL_NODE_FD:
+			bd_update_purity(previous, BD_PURE_FD);
+			break;
+		case LLHDL_NODE_ARITH:
+			bd_update_purity(previous, BD_PURE_ARITH);
+			break;
+		default:
+			assert(0);
+			break;
+	}
+}
+
+int bd_is_pure(struct llhdl_node *n)
+{
+	int purity;
+	int arity;
+	int i;
+	
+	purity = BD_PURE_EMPTY;
+	if(n != NULL) {
+		bd_update_purity_node(&purity, n->type);
+		switch(n->type) {
+			case LLHDL_NODE_CONSTANT:
+			case LLHDL_NODE_SIGNAL:
+			case LLHDL_NODE_VECT:
+				break;
+			case LLHDL_NODE_LOGIC:
+				arity = llhdl_get_logic_arity(n->p.logic.op);
+				for(i=0;i<arity;i++)
+					bd_update_purity(&purity, bd_is_pure(n->p.logic.operands[i]));
+				break;
+			case LLHDL_NODE_MUX:
+				bd_update_purity(&purity, bd_is_pure(n->p.mux.select));
+				for(i=0;i<n->p.mux.nsources;i++)
+					bd_update_purity(&purity, bd_is_pure(n->p.mux.sources[i]));
+			case LLHDL_NODE_FD:
+				bd_update_purity(&purity, bd_is_pure(n->p.fd.data));
+				break;
+			case LLHDL_NODE_ARITH:
+				bd_update_purity(&purity, bd_is_pure(n->p.arith.a));
+				bd_update_purity(&purity, bd_is_pure(n->p.arith.b));
+				break;
+			default:
+				assert(0);
+				break;
+		}
+	}
+	return purity;
+}
+
 struct purify_arc_param {
 	struct llhdl_module *module;
 	const char *name;
@@ -17,8 +117,8 @@ static void purify_arc(struct purify_arc_param *p, struct llhdl_node **n, int pu
 	int i, arity;
 
 	if(*n == NULL) return;
-	if(llhdl_belongs_in_pure(purity, (*n)->type)) {
-		llhdl_update_purity_node(&purity, (*n)->type);
+	if(bd_belongs_in_pure(purity, (*n)->type)) {
+		bd_update_purity_node(&purity, (*n)->type);
 		switch((*n)->type) {
 			case LLHDL_NODE_CONSTANT:
 			case LLHDL_NODE_SIGNAL:
@@ -63,7 +163,7 @@ static void purify_arc(struct purify_arc_param *p, struct llhdl_node **n, int pu
 		free(new_name);
 		
 		(*n)->p.signal.source = new_arc;
-		purify_arc(p, &(*n)->p.signal.source, LLHDL_PURE_EMPTY);
+		purify_arc(p, &(*n)->p.signal.source, BD_PURE_EMPTY);
 	}
 }
 
@@ -80,7 +180,7 @@ void bd_purify(struct llhdl_module *m)
 		p.rename_count = 0;
 		/* This can add signals to the module, but they are added
 		 * at the head and do not impact us. */
-		purify_arc(&p, &n->p.signal.source, LLHDL_PURE_EMPTY);
+		purify_arc(&p, &n->p.signal.source, BD_PURE_EMPTY);
 		n = n->p.signal.next;
 	}
 }

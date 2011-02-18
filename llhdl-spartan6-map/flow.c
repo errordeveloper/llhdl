@@ -321,21 +321,21 @@ static void map(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param)
 	n = sc->module->head;
 	while(n != NULL) {
 		assert(n->type == LLHDL_NODE_SIGNAL);
-		purity = llhdl_is_pure(n->p.signal.source);
+		purity = bd_is_pure(n->p.signal.source);
 		switch(purity) {
-			case LLHDL_PURE_EMPTY:
+			case BD_PURE_EMPTY:
 				/* nothing to do */
 				break;
-			case LLHDL_PURE_CONNECT:
+			case BD_PURE_CONNECT:
 				map_fd(&tilm_param_fd, n);
 				break;
-			case LLHDL_PURE_LOGIC:
+			case BD_PURE_LOGIC:
 				map_lut(&tilm_param, n);
 				break;
-			case LLHDL_PURE_FD:
+			case BD_PURE_FD:
 				map_fd(&tilm_param_fd, n);
 				break;
-			case LLHDL_COMPOUND:
+			case BD_COMPOUND:
 				/* This should not happen */
 				/* fall through */
 			default:
