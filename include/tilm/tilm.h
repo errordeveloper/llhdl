@@ -23,6 +23,11 @@ extern struct tilm_desc tilm_mappers[];
 
 int tilm_get_mapper_by_handle(const char *handle);
 
+/* Create a net and return a opaque handle
+ *   <user> User pointer from the tilm_sc structure
+ */
+typedef void * (*tilm_create_net_c)(void *user);
+
 /* Create a LUT and return a opaque instance handle
  *  <inputs> Number of inputs
  *  <contents> Bitmap of the LUT contents
@@ -42,6 +47,7 @@ void tilm_register(struct mapkit_sc *mapkit,
 	int mapper_id,
 	int max_inputs,
 	void *extra_mapper_param,
+	tilm_create_net_c create_net,
 	tilm_create_lut_c create_lut,
 	tilm_create_mux_c create_mux,
 	void *user);

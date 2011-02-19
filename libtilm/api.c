@@ -56,6 +56,7 @@ void tilm_register(struct mapkit_sc *mapkit,
 	int mapper_id,
 	int max_inputs,
 	void *extra_mapper_param,
+	tilm_create_net_c create_net,
 	tilm_create_lut_c create_lut,
 	tilm_create_mux_c create_mux,
 	void *user)
@@ -68,6 +69,7 @@ void tilm_register(struct mapkit_sc *mapkit,
 	sc->mapper_id = mapper_id;
 	sc->max_inputs = max_inputs;
 	sc->extra_mapper_param = extra_mapper_param;
+	sc->create_net = create_net;
 	sc->create_lut = create_lut;
 	sc->create_mux = create_mux;
 	sc->user = user;

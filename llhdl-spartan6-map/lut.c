@@ -18,6 +18,12 @@
 
 #include "flow.h"
 
+static void *tc_create_net(void *user)
+{
+	struct flow_sc *sc = user;
+	return netlist_m_create_net(sc->netlist);
+}
+
 static void *tc_create_lut(int inputs, mpz_t contents, void *user)
 {
 	struct flow_sc *sc = user;
@@ -72,6 +78,7 @@ void lut_register(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param
 		lutmapper,
 		6,
 		lutmapper_extra_param,
+		tc_create_net,
 		tc_create_lut,
 		tc_create_mux,
 		sc);
