@@ -20,6 +20,8 @@ static void mapkit_interconnect_down(struct mapkit_sc *sc, int target_vectorsize
 	int i, offset;
 	int sign_extend;
 	
+	if(source == NULL) return;
+	
 	/* Retrieve the source nets in their original size */
 	source_vectorsize = llhdl_get_vectorsize(source);
 	source_sign = llhdl_get_sign(source);
@@ -38,7 +40,7 @@ static void mapkit_interconnect_down(struct mapkit_sc *sc, int target_vectorsize
 	} else {
 		if(source->type == LLHDL_NODE_SIGNAL) {
 			for(i=0;i<source_vectorsize;i++)
-				source_nets[i] = MAPKIT_CALL_SIGNAL(sc, n, i);
+				source_nets[i] = MAPKIT_CALL_SIGNAL(sc, source, i);
 		} else {
 			fprintf(stderr, "LLHDL node of type '%s' failed to map\n", llhdl_strtype(source->type));
 			exit(EXIT_FAILURE);

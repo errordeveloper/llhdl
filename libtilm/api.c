@@ -65,6 +65,7 @@ void tilm_register(struct mapkit_sc *mapkit,
 	assert(max_inputs >= 3);
 	sc = alloc_type(struct tilm_sc);
 	sc->mapkit = mapkit;
+	sc->mapper_id = mapper_id;
 	sc->max_inputs = max_inputs;
 	sc->extra_mapper_param = extra_mapper_param;
 	sc->create_lut = create_lut;

@@ -144,6 +144,7 @@ static void run_process_unmapped(struct llhdl_node *n, struct mapkit_process_des
 
 static void run_process(struct llhdl_node **n, struct mapkit_process_desc *pd)
 {
+	if(*n == NULL) return;
 	if((*n)->user != NULL)
 		/* Node is already mapped, carry on to the cut line */
 		run_process_mapped((*n)->user, pd);
