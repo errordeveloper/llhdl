@@ -69,8 +69,9 @@ static struct llhdl_node *alloc_base_node(int payload_size, int type)
 {
 	struct llhdl_node *n;
 
-	n = alloc_size(sizeof(int)+payload_size);
+	n = alloc_size(sizeof(int)+sizeof(void *)+payload_size);
 	n->type = type;
+	n->user = NULL;
 	return n;
 }
 
@@ -97,6 +98,7 @@ struct llhdl_node *llhdl_create_signal(struct llhdl_module *m, int type, const c
 	n->p.signal.vectorsize = vectorsize;
 	n->p.signal.source = NULL;
 	n->p.signal.next = m->head;
+	n->p.signal.is_clock = 0;
 	memcpy(n->p.signal.name, name, len+1);
 	m->head = n;
 	return n;

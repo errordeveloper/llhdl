@@ -12,5 +12,6 @@ void netlist_m_free(struct netlist_manager *m);
 
 struct netlist_instance *netlist_m_instantiate(struct netlist_manager *m, struct netlist_primitive *p);
 struct netlist_net *netlist_m_create_net(struct netlist_manager *m);
+struct netlist_net *netlist_m_create_net_with_branch(struct netlist_manager *m, struct netlist_instance *inst, int output, int pin_index);
 
 #endif /* __NETLIST_MANAGER_H */

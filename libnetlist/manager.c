@@ -55,3 +55,12 @@ struct netlist_net *netlist_m_create_net(struct netlist_manager *m)
 	m->nhead = net;
 	return net;
 }
+
+struct netlist_net *netlist_m_create_net_with_branch(struct netlist_manager *m, struct netlist_instance *inst, int output, int pin_index)
+{
+	struct netlist_net *net;
+	
+	net = netlist_m_create_net(m);
+	netlist_add_branch(net, inst, output, pin_index);
+	return net;
+}

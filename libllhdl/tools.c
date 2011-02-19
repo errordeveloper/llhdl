@@ -6,6 +6,20 @@
 
 #include <util.h>
 
+const char *llhdl_strtype(int type)
+{
+	switch(type) {
+		case LLHDL_NODE_CONSTANT: return "CONSTANT";
+		case LLHDL_NODE_SIGNAL: return "SIGNAL";
+		case LLHDL_NODE_LOGIC: return "LOGIC";
+		case LLHDL_NODE_MUX: return "MUX";
+		case LLHDL_NODE_FD: return "FD";
+		case LLHDL_NODE_VECT: return "VECT";
+		case LLHDL_NODE_ARITH: return "ARITH";
+		default: assert(0); return NULL;
+	}
+}
+
 struct llhdl_node *llhdl_dup(struct llhdl_node *n)
 {
 	struct llhdl_node *r;
@@ -201,8 +215,121 @@ int llhdl_get_vectorsize(struct llhdl_node *n)
 					assert(0);
 					break;
 			}
+			break;
 		default:
 			assert(0);
 			break;
 	}
 }
+
+struct llhdl_walk_param {
+	llhdl_walk_c walk_c;
+	void *user;
+};
+
+static int llhdl_walk_s(struct llhdl_walk_param *p, struct llhdl_node **n2)
+{
+	struct llhdl_node *n;
+	int arity;
+	int i;
+	
+	if(!p->walk_c(n2, p->user)) return 0;
+	n = *n2;
+	switch(n->type) {
+		case LLHDL_NODE_SIGNAL:
+		case LLHDL_NODE_CONSTANT:
+			break;
+		case LLHDL_NODE_LOGIC:
+			arity = llhdl_get_logic_arity(n->p.logic.op);
+			for(i=0;i<arity;i++)
+				if(!llhdl_walk_s(p, &n->p.logic.operands[i])) return 0;
+			return 1;
+		case LLHDL_NODE_MUX:
+			if(!llhdl_walk_s(p, &n->p.mux.select)) return 0;
+			for(i=0;i<n->p.mux.nsources;i++)
+				if(!llhdl_walk_s(p, &n->p.mux.sources[i])) return 0;
+			return 1;
+		case LLHDL_NODE_FD:
+			if(!llhdl_walk_s(p, &n->p.fd.clock)) return 0;
+			if(!llhdl_walk_s(p, &n->p.fd.data)) return 0;
+			return 1;
+		case LLHDL_NODE_VECT:
+			for(i=0;i<n->p.vect.nslices;i++)
+				if(!llhdl_walk_s(p, &n->p.vect.slices[i].source)) return 0;
+			return 1;
+		case LLHDL_NODE_ARITH:
+			if(!llhdl_walk_s(p, &n->p.arith.a)) return 0;
+			if(!llhdl_walk_s(p, &n->p.arith.b)) return 0;
+			return 1;
+		default:
+			assert(0);
+			break;
+	}
+	return 0;
+}
+
+int llhdl_walk(llhdl_walk_c walk_c, void *user, struct llhdl_node **n)
+{
+	struct llhdl_walk_param p;
+	
+	p.walk_c = walk_c;
+	p.user = user;
+	return llhdl_walk_s(&p, n);
+}
+
+int llhdl_walk_module(llhdl_walk_c walk_c, void *user, struct llhdl_module *m)
+{
+	struct llhdl_node *n;
+	
+	n = m->head;
+	while(n != NULL) {
+		assert(n->type == LLHDL_NODE_SIGNAL);
+		if(!llhdl_walk(walk_c, user, &n->p.signal.source)) return 0;
+		n = n->p.signal.next;
+	}
+	return 1;
+}
+
+void llhdl_clear_clocks(struct llhdl_module *m)
+{
+	struct llhdl_node *n;
+	
+	n = m->head;
+	while(n != NULL) {
+		assert(n->type == LLHDL_NODE_SIGNAL);
+		n->p.signal.is_clock = 0;
+		n = n->p.signal.next;
+	}
+}
+
+static int walk_identify_clocks(struct llhdl_node **n2, void *user)
+{
+	struct llhdl_node *n = *n2;
+	struct llhdl_node *fdclock;
+	
+	if(n->type == LLHDL_NODE_FD) {
+		fdclock = n->p.fd.clock;
+		if(fdclock->type == LLHDL_NODE_SIGNAL)
+			fdclock->p.signal.is_clock = 1;
+	}
+
+	return 1;
+}
+
+void llhdl_identify_clocks(struct llhdl_module *m)
+{
+	llhdl_walk_module(walk_identify_clocks, NULL, m);
+}
+
+int llhdl_is_clock(struct llhdl_node *n)
+{
+	assert(n->type == LLHDL_NODE_SIGNAL);
+	return n->p.signal.is_clock;
+}
+
+void llhdl_mark_clock(struct llhdl_node *n, int c)
+{
+	assert(n->type == LLHDL_NODE_SIGNAL);
+	n->p.signal.is_clock = c;
+}
+

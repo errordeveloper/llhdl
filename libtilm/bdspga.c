@@ -3,9 +3,10 @@
 #include <gmp.h>
 
 #include <llhdl/structure.h>
-#include <tilm/mappers.h>
 
-struct tilm_result *tilm_bdspga_map(struct tilm_param *p, struct llhdl_node *top)
+#include "internal.h"
+
+void tilm_process_bdspga(struct tilm_sc *sc, struct llhdl_node **n)
 {
 	fprintf(stderr, "BDS-PGA mapping is not implemented yet\n");
 	exit(EXIT_FAILURE);

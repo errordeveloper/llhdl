@@ -12,7 +12,13 @@
 		abort();				\
 	alloc_size_tmp; })
 
+#define alloc_size0(s)					\
+    ({  void *alloc_size_tmp2 = alloc_size(s);		\
+	memset(alloc_size_tmp2, 0, s);			\
+	alloc_size_tmp2; })
+
 #define alloc_type(t) ((t *)alloc_size(sizeof(t)))
+#define alloc_type0(t) ((t *)alloc_size0(sizeof(t)))
 
 #define stralloc(s)					\
     ({  char *stralloc_tmp = strdup(s);			\

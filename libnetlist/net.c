@@ -84,6 +84,7 @@ void netlist_join(struct netlist_net *resulting, struct netlist_net *tomerge)
 {
 	struct netlist_branch *last;
 	
+	if((resulting == NULL) || (tomerge == NULL)) return;
 	resulting = netlist_resolve_joined(resulting);
 	tomerge = netlist_resolve_joined(tomerge);
 	if(resulting == tomerge) return;

@@ -24,6 +24,7 @@ struct llhdl_node_signal {
 	int vectorsize;
 	struct llhdl_node *source;
 	struct llhdl_node *next;
+	int is_clock;
 	char name[];
 };
 
@@ -86,6 +87,7 @@ enum {
 
 struct llhdl_node {
 	int type;
+	void *user;
 	union {
 		struct llhdl_node_constant constant;
 		struct llhdl_node_signal signal;

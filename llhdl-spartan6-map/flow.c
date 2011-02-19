@@ -16,41 +16,14 @@
 #include <llhdl/exchange.h>
 #include <llhdl/tools.h>
 
+#include <mapkit/mapkit.h>
+
 #include <bd/bd.h>
 
-#include <tilm/tilm.h>
-
-struct flow_sc {
-	struct llhdl_module *module;
-	struct llhdl_node *clock;
-	struct netlist_iop_manager *netlist_iop;
-	struct netlist_manager *netlist;
-	struct netlist_sym_store *symbols;
-	struct netlist_instance *vcc;
-	struct netlist_instance *gnd;
-};
-
-/* TODO: multiple clock support + move this function to libllhdl */
-static void find_clock(struct flow_sc *sc)
-{
-	struct llhdl_node *n;
-
-	sc->clock = NULL;
-	n = sc->module->head;
-	while(n != NULL) {
-		assert(n->type == LLHDL_NODE_SIGNAL);
-		if((n->p.signal.source != NULL) && (n->p.signal.source->type == LLHDL_NODE_FD)) {
-			if(sc->clock == NULL) {
-				assert(n->p.signal.source->p.fd.clock->type == LLHDL_NODE_SIGNAL);
-				sc->clock = n->p.signal.source->p.fd.clock;
-			} else if(sc->clock != n->p.signal.source->p.fd.clock) {
-				fprintf(stderr, "FIXME: multi-clock designs are not implemented yet\n");
-				exit(EXIT_FAILURE);
-			}
-		}
-		n = n->p.signal.next;
-	}
-}
+#include "arith.h"
+#include "lut.h"
+#include "fd.h"
+#include "flow.h"
 
 static char *iosuffix(const char *base)
 {
@@ -84,7 +57,7 @@ static void create_io(struct flow_sc *sc, struct llhdl_node *n, struct netlist_n
 	struct netlist_instance *ioport;
 
 	isout = n->p.signal.type == LLHDL_SIGNAL_PORT_OUT;
-	if(n == sc->clock) {
+	if(llhdl_is_clock(n)) {
 		assert(!isout);
 		buf_type = NETLIST_XIL_BUFGP;
 		buf_port_fabric = NETLIST_XIL_BUFGP_O;
@@ -151,8 +124,31 @@ static void create_signals(struct flow_sc *sc)
 	}
 }
 
-static struct netlist_net *resolve_signal(struct flow_sc *sc, struct llhdl_node *n, int bit)
+static void *mkc_constant(int v, void *user)
 {
+	struct flow_sc *sc = user;
+	struct netlist_instance *inst;
+
+	if(v) {
+		if(sc->vcc_net == NULL) {
+			inst = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_VCC]);
+			sc->vcc_net = netlist_m_create_net(sc->netlist);
+			netlist_add_branch(sc->vcc_net, inst, 1, NETLIST_XIL_VCC_P);
+		}
+		return sc->vcc_net;
+	} else {
+		if(sc->gnd_net == NULL) {
+			inst = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_GND]);
+			sc->gnd_net = netlist_m_create_net(sc->netlist);
+			netlist_add_branch(sc->gnd_net, inst, 1, NETLIST_XIL_GND_G);
+		}
+		return sc->gnd_net;
+	}
+}
+
+static void *mkc_signal(struct llhdl_node *n, int bit, void *user)
+{
+	struct flow_sc *sc = user;
 	struct netlist_sym *sym;
 	int is_vec;
 	int is_io;
@@ -179,171 +175,9 @@ static struct netlist_net *resolve_signal(struct flow_sc *sc, struct llhdl_node 
 	return sym->user;
 }
 
-static struct netlist_instance *get_gnd_vcc(struct flow_sc *sc, int v)
+static void mkc_join(void *a, void *b, void *user)
 {
-	if(v) {
-		if(sc->vcc == NULL)
-			sc->vcc = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_VCC]);
-		return sc->vcc;
-	} else {
-		if(sc->gnd == NULL)
-			sc->gnd = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_GND]);
-		return sc->gnd;
-	}
-}
-
-static void *tc_create(int inputs, mpz_t contents, void *user)
-{
-	struct flow_sc *sc = user;
-	int primitive_type;
-	char val[17];
-	struct netlist_instance *inst;
-
-	if(inputs == 0)
-		return get_gnd_vcc(sc, mpz_get_si(contents));
-	
-	assert(inputs < 7);
-	primitive_type = 0;
-	switch(inputs) {
-		case 1:
-			primitive_type = NETLIST_XIL_LUT1;
-			gmp_sprintf(val, "%Zx", contents);
-			break;
-		case 2:
-			primitive_type = NETLIST_XIL_LUT2;
-			gmp_sprintf(val, "%Zx", contents);
-			break;
-		case 3:
-			primitive_type = NETLIST_XIL_LUT3;
-			gmp_sprintf(val, "%02Zx", contents);
-			break;
-		case 4:
-			primitive_type = NETLIST_XIL_LUT4;
-			gmp_sprintf(val, "%04Zx", contents);
-			break;
-		case 5:
-			primitive_type = NETLIST_XIL_LUT5;
-			gmp_sprintf(val, "%08Zx", contents);
-			break;
-		case 6:
-			primitive_type = NETLIST_XIL_LUT6;
-			gmp_sprintf(val, "%16Zx", contents);
-			break;
-	}
-	inst = netlist_m_instantiate(sc->netlist, &netlist_xilprims[primitive_type]);
-	netlist_set_attribute(inst, "INIT", val);
-	return inst;
-}
-
-static void *tc_create_fd(void *user)
-{
-	struct flow_sc *sc = user;
-	return netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_FD]);
-}
-
-static void tc_connect(void *a, void *b, int n, void *user)
-{
-	struct flow_sc *sc = user;
-	struct netlist_net *net;
-	
-	net = netlist_m_create_net(sc->netlist);
-	netlist_add_branch(net, a, 1, 0);
-	netlist_add_branch(net, b, 0, n);
-}
-
-static void process_tilm_result(struct flow_sc *sc, struct llhdl_node *n, struct tilm_result *result)
-{
-	struct netlist_net *net;
-	int i;
-	struct tilm_input_assoc *a;
-
-	/* Connect outputs of the generated logic */
-	for(i=0;i<result->vectorsize;i++) {
-		net = resolve_signal(sc, n, i);
-		if(result->out_insts[i] != NULL)
-			netlist_add_branch(net, result->out_insts[i], 1, 0);
-		else
-			netlist_join(net, resolve_signal(sc, result->merges[i].signal, result->merges[i].bit));
-	}
-	
-	/* Connect inputs of the generated logic */
-	a = result->ihead;
-	while(a != NULL) {
-		net = resolve_signal(sc, a->signal, a->bit);
-		netlist_add_branch(net, a->inst, 0, a->n);
-		a = a->next;
-	}
-}
-
-static void map_lut(struct tilm_param *p, struct llhdl_node *n)
-{
-	struct flow_sc *sc = p->user;
-	struct tilm_result *result;
-	
-	result = tilm_map(p, n->p.signal.source);
-	process_tilm_result(sc, n, result);
-	tilm_free_result(result);
-}
-
-static void map_fd(struct tilm_param_fd *p, struct llhdl_node *n)
-{
-	struct flow_sc *sc = p->user;
-	struct tilm_result *result;
-	
-	result = tilm_map_fd(p, n->p.signal.source);
-	process_tilm_result(sc, n, result);
-	tilm_free_result(result);
-}
-
-static void map(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param)
-{
-	struct tilm_param tilm_param;
-	struct tilm_param_fd tilm_param_fd;
-	struct llhdl_node *n;
-	int purity;
-
-	memset(&tilm_param, 0, sizeof(tilm_param));
-	tilm_param.mapper_id = lutmapper;
-	tilm_param.max_inputs = 6;
-	tilm_param.extra_mapper_param = lutmapper_extra_param;
-	tilm_param.create = tc_create;
-	tilm_param.connect = tc_connect;
-	tilm_param.user = sc;
-	
-	memset(&tilm_param_fd, 0, sizeof(tilm_param_fd));
-	tilm_param_fd.create = tc_create;
-	tilm_param_fd.create_fd = tc_create_fd;
-	tilm_param_fd.connect = tc_connect;
-	tilm_param_fd.d_pin = NETLIST_XIL_FD_D;
-	tilm_param_fd.c_pin = NETLIST_XIL_FD_C;
-	tilm_param_fd.user = sc;
-
-	n = sc->module->head;
-	while(n != NULL) {
-		assert(n->type == LLHDL_NODE_SIGNAL);
-		purity = bd_is_pure(n->p.signal.source);
-		switch(purity) {
-			case BD_PURE_EMPTY:
-				/* nothing to do */
-				break;
-			case BD_PURE_CONNECT:
-				map_fd(&tilm_param_fd, n);
-				break;
-			case BD_PURE_LOGIC:
-				map_lut(&tilm_param, n);
-				break;
-			case BD_PURE_FD:
-				map_fd(&tilm_param_fd, n);
-				break;
-			case BD_COMPOUND:
-				/* This should not happen */
-				/* fall through */
-			default:
-				assert(0);
-				break;
-		}
-		n = n->p.signal.next;
-	}
+	netlist_join(a, b);
 }
 
 void run_flow(const char *input_lhd, const char *output_edf, const char *output_sym, const char *part, int lutmapper, void *lutmapper_extra_param)
@@ -356,8 +190,9 @@ void run_flow(const char *input_lhd, const char *output_edf, const char *output_
 	sc.netlist_iop = netlist_create_iop_manager();
 	sc.netlist = netlist_m_new();
 	sc.symbols = netlist_sym_newstore();
-	sc.vcc = NULL;
-	sc.gnd = NULL;
+	sc.vcc_net = NULL;
+	sc.gnd_net = NULL;
+	sc.mapkit = mapkit_new(sc.module, mkc_constant, mkc_signal, mkc_join, &sc);
 
 	edif_param.flavor = EDIF_FLAVOR_XILINX;
 	edif_param.design_name = sc.module->name;
@@ -365,25 +200,24 @@ void run_flow(const char *input_lhd, const char *output_edf, const char *output_
 	edif_param.part = (char *)part;
 	edif_param.manufacturer = "Xilinx";
 	
-	/* Break down the LLHDL structure */
-	bd_flow(sc.module, 0);
+	/* Build the meta-mapper process stack */
+	arith_register(&sc);
+	bd_register(sc.mapkit);
+	lut_register(&sc, lutmapper, lutmapper_extra_param);
+	fd_register(&sc);
 	
-	/* Find clock (we only support single clock designs atm) */
-	find_clock(&sc);
-	
-	/* Create netlist signals from LLHDL signals.
-	 * I/O and clock buffers are also inserted there.
-	 */
+	/* Create netlist signals. I/O and clock buffers are also inserted here. */
+	llhdl_identify_clocks(sc.module);
 	create_signals(&sc);
-	
-	/* Map logic */
-	map(&sc, lutmapper, lutmapper_extra_param);
+	/* Run the meta-mapper */
+	mapkit_metamap(sc.mapkit);
 	
 	/* Write output files */
 	netlist_m_edif_file(sc.netlist, output_edf, &edif_param);
 	netlist_sym_to_file(sc.symbols, output_sym);
 	
 	/* Clean up */
+	mapkit_free(sc.mapkit);
 	netlist_sym_freestore(sc.symbols);
 	netlist_m_free(sc.netlist);
 	netlist_free_iop_manager(sc.netlist_iop);

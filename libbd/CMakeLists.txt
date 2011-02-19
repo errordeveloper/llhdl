@@ -1,2 +1,2 @@
-add_library(bd flow.c basic.c)
-target_link_libraries(bd llhdl)
+add_library(bd api.c)
+target_link_libraries(bd llhdl mapkit)
