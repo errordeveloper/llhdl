@@ -112,7 +112,7 @@ static void parse_vectorsize_sign(int *vectorsize_affected, int *sign_affected, 
 	token = strtok_r(NULL, delims, saveptr);
 	if(token == NULL)
 		return;
-	if(strcmp(token, "signed") == 0) {
+	if(strcmp(token, "s") == 0) {
 		if(*sign_affected) {
 			fprintf(stderr, "Redundant sign qualifier\n");
 			exit(EXIT_FAILURE);
@@ -429,7 +429,7 @@ static void write_signals(struct llhdl_module *m, FILE *fd)
 		if(n->p.signal.vectorsize > 1)
 			fprintf(fd, " %d", n->p.signal.vectorsize);
 		if(n->p.signal.sign)
-			fprintf(fd, " signed");
+			fprintf(fd, " s");
 		fprintf(fd, "\n");
 		n = n->p.signal.next;
 	}
