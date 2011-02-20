@@ -3,6 +3,7 @@
 
 #include <llhdl/structure.h>
 #include <mapkit/mapkit.h>
+#include "internal.h"
 
 /*
  * If the node is not the parent of a partition that should be mapped

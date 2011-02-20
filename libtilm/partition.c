@@ -42,6 +42,9 @@ static void part_node_list_add(struct part_node_list *nl, struct llhdl_node **n)
 			last = last->next;
 		last->next = new;
 	}
+	
+	nl->nnodes++;
+	nl->nbits += llhdl_get_vectorsize(*n);
 }
 
 static void part_node_list_free(struct part_node_list *nl)
@@ -112,6 +115,7 @@ struct mapkit_result *tilm_try_partition(struct tilm_sc *sc, struct llhdl_node *
 	nl.nbits = 0;
 	nl.head = NULL;
 	find_partition_boundary(&nl, n);
+	noutputs = llhdl_get_vectorsize(*n);
 	
 	/* Generate the Mapkit result structure */
 	r = mapkit_create_result(nl.nnodes, nl.nbits, noutputs);
