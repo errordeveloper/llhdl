@@ -42,7 +42,7 @@ static void add_variable(struct tilm_variable **head, struct llhdl_node *n, int 
 	} else {
 		if(bit < count)
 			add_single_variable(head, n, bit);
-		else if(llhdl_get_sign(n)) /* < TODO */
+		else if(llhdl_get_sign(n))
 			add_single_variable(head, n, count-1);
 	}
 }

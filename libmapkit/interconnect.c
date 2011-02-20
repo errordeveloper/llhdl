@@ -10,15 +10,14 @@
 
 #include <mapkit/mapkit.h>
 
-static void mapkit_interconnect_down(struct mapkit_sc *sc, int target_vectorsize, int target_sign, void **target_nets, struct llhdl_node *source)
+static void mapkit_interconnect_down(struct mapkit_sc *sc, int target_vectorsize, void **target_nets, struct llhdl_node *source)
 {
 	int source_vectorsize, source_sign;
 	void **source_nets;
 	struct mapkit_result *mapr;
-	int vectorsize, sign;
+	int vectorsize;
 	struct llhdl_node *n;
 	int i, offset;
-	int sign_extend;
 	
 	if(source == NULL) return;
 	
@@ -33,8 +32,7 @@ static void mapkit_interconnect_down(struct mapkit_sc *sc, int target_vectorsize
 		for(i=0;i<mapr->ninput_nodes;i++) {
 			n = *(mapr->input_nodes[i]);
 			vectorsize = llhdl_get_vectorsize(n);
-			sign = llhdl_get_sign(n);
-			mapkit_interconnect_down(sc, vectorsize, sign, &mapr->input_nets[offset], n);
+			mapkit_interconnect_down(sc, vectorsize, &mapr->input_nets[offset], n);
 			offset += vectorsize;
 		}
 	} else {
@@ -48,12 +46,11 @@ static void mapkit_interconnect_down(struct mapkit_sc *sc, int target_vectorsize
 	}
 	
 	/* Make the connection, cutting or expanding to fit the target vectorsize */
-	sign_extend = source_sign && target_sign;
 	for(i=0;i<target_vectorsize;i++) {
 		if(i < source_vectorsize)
 			MAPKIT_CALL_JOIN(sc, target_nets[i], source_nets[i]);
 		else {
-			if(sign_extend)
+			if(source_sign)
 				MAPKIT_CALL_JOIN(sc, target_nets[i], source_nets[source_vectorsize-1]);
 			else
 				MAPKIT_CALL_JOIN(sc, target_nets[i], MAPKIT_CALL_CONSTANT(sc, 0));
@@ -72,6 +69,6 @@ void mapkit_interconnect_arc(struct mapkit_sc *sc, struct llhdl_node *n)
 	target_nets = alloc_size(n->p.signal.vectorsize*sizeof(void *));
 	for(i=0;i<n->p.signal.vectorsize;i++)
 		target_nets[i] = MAPKIT_CALL_SIGNAL(sc, n, i);
-	mapkit_interconnect_down(sc, n->p.signal.vectorsize, n->p.signal.sign, target_nets, n->p.signal.source);
+	mapkit_interconnect_down(sc, n->p.signal.vectorsize, target_nets, n->p.signal.source);
 	free(target_nets);
 }
