@@ -233,6 +233,7 @@ static int llhdl_walk_s(struct llhdl_walk_param *p, struct llhdl_node **n2)
 	int arity;
 	int i;
 	
+	if(*n2 == NULL) return 1;
 	if(!p->walk_c(n2, p->user)) return 0;
 	n = *n2;
 	switch(n->type) {
@@ -265,7 +266,7 @@ static int llhdl_walk_s(struct llhdl_walk_param *p, struct llhdl_node **n2)
 			assert(0);
 			break;
 	}
-	return 0;
+	return 1;
 }
 
 int llhdl_walk(llhdl_walk_c walk_c, void *user, struct llhdl_node **n)
