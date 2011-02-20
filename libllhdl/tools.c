@@ -20,6 +20,27 @@ const char *llhdl_strtype(int type)
 	}
 }
 
+const char *llhdl_strlogic(int op)
+{
+	switch(op) {
+		case LLHDL_LOGIC_NOT: return "NOT";
+		case LLHDL_LOGIC_AND: return "AND";
+		case LLHDL_LOGIC_OR: return "OR";
+		case LLHDL_LOGIC_XOR: return "XOR";
+		default: assert(0); return NULL;
+	}
+}
+
+const char *llhdl_strarith(int op)
+{
+	switch(op) {
+		case LLHDL_ARITH_ADD: return "ADD";
+		case LLHDL_ARITH_SUB: return "SUB";
+		case LLHDL_ARITH_MUL: return "MUL";
+		default: assert(0); return NULL;
+	}
+}
+
 struct llhdl_node *llhdl_dup(struct llhdl_node *n)
 {
 	struct llhdl_node *r;

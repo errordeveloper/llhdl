@@ -4,6 +4,8 @@
 #include <llhdl/structure.h>
 
 const char *llhdl_strtype(int type);
+const char *llhdl_strlogic(int op);
+const char *llhdl_strarith(int op);
 
 struct llhdl_node *llhdl_dup(struct llhdl_node *n);
 int llhdl_equiv(struct llhdl_node *a, struct llhdl_node *b);
