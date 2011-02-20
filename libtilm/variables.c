@@ -131,6 +131,7 @@ int tilm_variables_remaining(struct tilm_variable *v)
 {
 	int r;
 	
+	r = 0;
 	while(v != NULL) {
 		r++;
 		v = v->next;
@@ -157,7 +158,6 @@ int tilm_variable_value(struct tilm_variables *r, int obit, struct llhdl_node *n
 			return v->value;
 		v = v->next;
 	}
-	assert(0);
 	return 0;
 }
 

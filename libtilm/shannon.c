@@ -180,7 +180,7 @@ static void *fit_into_lut(struct map_level_param *mlp, struct tilm_variable *v)
 	if(varcount == 0)
 		/* Constant */
 		lut_net = TILM_CALL_CONSTANT(mlp->sc, mpz_get_ui(contents));
-	if((varcount == 1) && (mpz_get_ui(contents) == 2))
+	else if((varcount == 1) && (mpz_get_ui(contents) == 2))
 		/* Identity */
 		lut_net = mapkit_find_input_net(mlp->r, v->n, v->bit);
 	else {
