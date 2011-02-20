@@ -12,6 +12,8 @@
 
 #include <banner/banner.h>
 
+static int print_labels;
+
 static unsigned int new_id()
 {
 	static unsigned int next_id;
@@ -21,11 +23,22 @@ static unsigned int new_id()
 static const char *signal_style(int type)
 {
 	switch(type) {
-		case LLHDL_SIGNAL_INTERNAL: return ", style=\"filled,rounded\", fillcolor=gray";
-		case LLHDL_SIGNAL_PORT_OUT: return ", style=\"filled,bold\", fillcolor=gray";
-		case LLHDL_SIGNAL_PORT_IN: return ", style=filled, fillcolor=gray";
+		case LLHDL_SIGNAL_INTERNAL: return ", style=\"filled,rounded\", fillcolor=lightgray";
+		case LLHDL_SIGNAL_PORT_OUT: return ", style=\"filled,bold\", fillcolor=lightgray";
+		case LLHDL_SIGNAL_PORT_IN: return ", style=filled, fillcolor=lightgray";
 	}
 	return NULL;
+}
+
+static char *connect_label(struct llhdl_node *n)
+{
+	static char buf[32];
+	
+	if(print_labels)
+		sprintf(buf, " [label=\"%c:%d\"]", llhdl_get_sign(n) ? 's':'u', llhdl_get_vectorsize(n));
+	else
+		buf[0] = 0;
+	return buf;
 }
 
 static unsigned int declare_down(FILE *fd, struct llhdl_node *n)
@@ -62,7 +75,7 @@ static unsigned int declare_down(FILE *fd, struct llhdl_node *n)
 			for(i=0;i<arity;i++)
 				operands[i] = declare_down(fd, n->p.logic.operands[i]);
 			for(i=0;i<arity;i++)
-				fprintf(fd, "N%x:out -> N%x:operand%d;\n", operands[i], this_id, i);
+				fprintf(fd, "N%x:out -> N%x:operand%d%s;\n", operands[i], this_id, i, connect_label(n->p.logic.operands[i]));
 			free(operands);
 			break;
 		case LLHDL_NODE_MUX:
@@ -74,9 +87,9 @@ static unsigned int declare_down(FILE *fd, struct llhdl_node *n)
 			operands = alloc_size(n->p.mux.nsources*sizeof(unsigned int));
 			for(i=0;i<n->p.mux.nsources;i++)
 				operands[i] = declare_down(fd, n->p.mux.sources[i]);
-			fprintf(fd, "N%x:out -> N%x:select;\n", select, this_id);
+			fprintf(fd, "N%x:out -> N%x:select%s;\n", select, this_id, connect_label(n->p.mux.select));
 			for(i=0;i<n->p.mux.nsources;i++)
-				fprintf(fd, "N%x:out -> N%x:source%d;\n", operands[i], this_id, i);
+				fprintf(fd, "N%x:out -> N%x:source%d%s;\n", operands[i], this_id, i, connect_label(n->p.mux.sources[i]));
 			free(operands);
 			break;
 		case LLHDL_NODE_FD:
@@ -84,8 +97,8 @@ static unsigned int declare_down(FILE *fd, struct llhdl_node *n)
 			operands = alloc_size(2*sizeof(unsigned int));
 			operands[0] = declare_down(fd, n->p.fd.clock);
 			operands[1] = declare_down(fd, n->p.fd.data);
-			fprintf(fd, "N%x:out -> N%x:clock;\n", operands[0], this_id);
-			fprintf(fd, "N%x:out -> N%x:data;\n", operands[1], this_id);
+			fprintf(fd, "N%x:out -> N%x:clock%s;\n", operands[0], this_id, connect_label(n->p.fd.clock));
+			fprintf(fd, "N%x:out -> N%x:data%s;\n", operands[1], this_id, connect_label(n->p.fd.data));
 			free(operands);
 			break;
 		case LLHDL_NODE_VECT:
@@ -98,7 +111,7 @@ static unsigned int declare_down(FILE *fd, struct llhdl_node *n)
 			for(i=0;i<n->p.vect.nslices;i++)
 				operands[i] = declare_down(fd, n->p.vect.slices[i].source);
 			for(i=0;i<n->p.vect.nslices;i++)
-				fprintf(fd, "N%x:out -> N%x:slice%d;\n", operands[i], this_id, i);
+				fprintf(fd, "N%x:out -> N%x:slice%d%s;\n", operands[i], this_id, i, connect_label(n->p.vect.slices[i].source));
 			free(operands);
 			break;
 		case LLHDL_NODE_ARITH:
@@ -106,8 +119,8 @@ static unsigned int declare_down(FILE *fd, struct llhdl_node *n)
 			operands = alloc_size(2*sizeof(unsigned int));
 			operands[0] = declare_down(fd, n->p.arith.a);
 			operands[1] = declare_down(fd, n->p.arith.b);
-			fprintf(fd, "N%x:out -> N%x:operand0;\n", operands[0], this_id);
-			fprintf(fd, "N%x:out -> N%x:operand1;\n", operands[1], this_id);
+			fprintf(fd, "N%x:out -> N%x:operand0%s;\n", operands[0], this_id, connect_label(n->p.arith.a));
+			fprintf(fd, "N%x:out -> N%x:operand1%s;\n", operands[1], this_id, connect_label(n->p.arith.b));
 			free(operands);
 			break;
 		default:
@@ -133,10 +146,17 @@ static void declare_arcs(FILE *fd, struct llhdl_module *m)
 				n->p.signal.vectorsize,
 				signal_style(n->p.signal.type));
 				source = declare_down(fd, n->p.signal.source);
-				fprintf(fd, "N%x:out -> N%x;\n", source, sig);
+				fprintf(fd, "N%x:out -> N%x%s;\n", source, sig, connect_label(n->p.signal.source));
 		}
 		n = n->p.signal.next;
 	}
+}
+
+static void help()
+{
+	banner("Dot (Graphviz) generator");
+	printf("Usage: llhdl-dot <input.lhd> <output.dot> [\"labels\"]\n");
+	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[])
@@ -145,9 +165,10 @@ int main(int argc, char *argv[])
 	FILE *fd;
 
 	if(argc != 3) {
-		banner("Dot (Graphviz) generator");
-		printf("Usage: llhdl-dot <input.lhd> <output.dot>\n");
-		exit(EXIT_FAILURE);
+		if((argc == 4) && (strcmp(argv[3], "labels") == 0))
+			print_labels = 1;
+		else
+			help();
 	}
 	
 	m = llhdl_parse_file(argv[1]);
