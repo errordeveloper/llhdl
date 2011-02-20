@@ -56,6 +56,8 @@ static void declare_down(FILE *fd, struct llhdl_node *n)
 				fprintf(fd, "|<source%d> %d", i, i);
 			fprintf(fd, "\"];\n");
 			declare_down(fd, n->p.mux.select);
+			for(i=0;i<n->p.mux.nsources;i++)
+				declare_down(fd, n->p.mux.sources[i]);
 			fprintf(fd, "N%lx:out -> N%lx:select;\n",
 				(unsigned long int)n->p.mux.select,
 				(unsigned long int)n);
@@ -104,7 +106,7 @@ static void declare_down(FILE *fd, struct llhdl_node *n)
 	}
 }
 
-static void declare_graph(FILE *fd, struct llhdl_module *m)
+static void declare_arcs(FILE *fd, struct llhdl_module *m)
 {
 	struct llhdl_node *n;
 	
@@ -117,6 +119,20 @@ static void declare_graph(FILE *fd, struct llhdl_module *m)
 		}
 		n = n->p.signal.next;
 	}
+}
+
+static void declare_signal_subgraph(FILE *fd, struct llhdl_module *m, const char *name, int type)
+{
+	struct llhdl_node *n;
+	
+	fprintf(fd, "subgraph cluster_%s {\nlabel=\"%s\";\nrank=%d;\n", name, name, type);
+	n = m->head;
+	while(n != NULL) {
+		if(n->p.signal.type == type)
+			fprintf(fd, "N%lx;\n", (unsigned long int)n);
+		n = n->p.signal.next;
+	}
+	fprintf(fd, "}\n");
 }
 
 int main(int argc, char *argv[])
@@ -140,7 +156,9 @@ int main(int argc, char *argv[])
 	fprintf(fd, "digraph %s {\n", m->name);
 	fprintf(fd, "node [shape=record];\n");
 	declare_signals(fd, m);
-	declare_graph(fd, m);
+	declare_arcs(fd, m);
+	declare_signal_subgraph(fd, m, "inputs", LLHDL_SIGNAL_PORT_IN);
+	declare_signal_subgraph(fd, m, "outputs", LLHDL_SIGNAL_PORT_OUT);
 	fprintf(fd, "}\n");
 	
 	if(fclose(fd) != 0) {
