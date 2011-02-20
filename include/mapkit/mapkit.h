@@ -58,6 +58,7 @@ void mapkit_free(struct mapkit_sc *sc);
 
 struct mapkit_result *mapkit_create_result(int ninput_nodes, int ninput_nets, int noutput_nets);
 void mapkit_free_result(struct mapkit_result *r);
+void *mapkit_find_input_net(struct mapkit_result *r, struct llhdl_node *n, int bit);
 void mapkit_consume(struct mapkit_sc *sc, struct llhdl_node *n, struct mapkit_result *r);
 
 void mapkit_metamap(struct mapkit_sc *sc);
@@ -65,4 +66,3 @@ void mapkit_metamap(struct mapkit_sc *sc);
 void mapkit_interconnect_arc(struct mapkit_sc *sc, struct llhdl_node *n);
 
 #endif /* __MAPKIT_MAPKIT_H */
-

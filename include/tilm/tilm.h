@@ -28,6 +28,12 @@ int tilm_get_mapper_by_handle(const char *handle);
  */
 typedef void * (*tilm_create_net_c)(void *user);
 
+/* Add pin <an> of instance <a> to net <net>
+ *  <output> 1 of the pin is an output of <a>
+ *  <user> User pointer from the tilm_sc structure
+ */
+typedef void (*tilm_branch_c)(void *net, void *a, int output, int an, void *user);
+
 /* Create a LUT and return a opaque instance handle
  *  <inputs> Number of inputs
  *  <contents> Bitmap of the LUT contents
@@ -47,9 +53,10 @@ void tilm_register(struct mapkit_sc *mapkit,
 	int mapper_id,
 	int max_inputs,
 	void *extra_mapper_param,
-	tilm_create_net_c create_net,
-	tilm_create_lut_c create_lut,
-	tilm_create_mux_c create_mux,
+	tilm_create_net_c create_net_c,
+	tilm_branch_c branch_c,
+	tilm_create_lut_c create_lut_c,
+	tilm_create_mux_c create_mux_c,
 	void *user);
 
 #endif /* __TILM_TILM_H */

@@ -24,6 +24,11 @@ static void *tc_create_net(void *user)
 	return netlist_m_create_net(sc->netlist);
 }
 
+static void tc_branch(void *net, void *a, int output, int an, void *user)
+{
+	return netlist_add_branch(net, a, output, an);
+}
+
 static void *tc_create_lut(int inputs, mpz_t contents, void *user)
 {
 	struct flow_sc *sc = user;
@@ -79,6 +84,7 @@ void lut_register(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param
 		6,
 		lutmapper_extra_param,
 		tc_create_net,
+		tc_branch,
 		tc_create_lut,
 		tc_create_mux,
 		sc);

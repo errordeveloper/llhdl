@@ -12,7 +12,7 @@
  *   <ninput_nodes> is number of nodes at the partition boundary
  *   <input_nodes> point to the nodes at the partition boundary
  *   <input_nets> contains empty nets
- *   <output_nets> contains empty nets
+ *   <output_nets> is a table of NULL
  */
 struct mapkit_result *tilm_try_partition(struct tilm_sc *sc, struct llhdl_node **n);
 

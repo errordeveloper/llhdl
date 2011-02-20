@@ -127,6 +127,40 @@ void tilm_variables_dump(struct tilm_variables *r)
 	}
 }
 
+int tilm_variables_remaining(struct tilm_variable *v)
+{
+	int r;
+	
+	while(v != NULL) {
+		r++;
+		v = v->next;
+	}
+	return r;
+}
+
+int tilm_variable_value(struct tilm_variables *r, int obit, struct llhdl_node *n, int bit)
+{
+	struct tilm_variable *v;
+	int vectorsize;
+	
+	vectorsize = llhdl_get_vectorsize(n);
+	if(bit >= vectorsize) {
+		if(llhdl_get_sign(n))
+			bit = vectorsize-1;	/* sign extend */
+		else
+			return 0;		/* fill with 0 */
+	}
+	
+	v = r->heads[obit];
+	while(v != NULL) {
+		if((v->n == n) && (v->bit == bit))
+			return v->value;
+		v = v->next;
+	}
+	assert(0);
+	return 0;
+}
+
 void tilm_variables_free(struct tilm_variables *r)
 {
 	int i;

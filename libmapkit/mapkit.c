@@ -90,6 +90,20 @@ void mapkit_free_result(struct mapkit_result *r)
 	free(r);
 }
 
+void *mapkit_find_input_net(struct mapkit_result *r, struct llhdl_node *n, int bit)
+{
+	int i;
+	
+	assert(bit < llhdl_get_vectorsize(n));
+	i = 0;
+	while((i < r->ninput_nodes) && (*(r->input_nodes[i]) != n)) {
+		bit += llhdl_get_vectorsize(*(r->input_nodes[i]));
+		i++;
+	}
+	assert(*(r->input_nodes[i]) == n);
+	return r->input_nets[bit];
+}
+
 void mapkit_consume(struct mapkit_sc *sc, struct llhdl_node *n, struct mapkit_result *r)
 {
 	assert(n->type != LLHDL_NODE_SIGNAL);

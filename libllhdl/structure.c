@@ -79,6 +79,10 @@ struct llhdl_node *llhdl_create_constant(mpz_t value, int sign, int vectorsize)
 {
 	struct llhdl_node *n;
 
+	/* TODO: handle here sign/size mismatches with the MPZ type so libgmp nicely
+	 * takes care of sign extension for us later on.
+	 */
+
 	n = alloc_base_node(sizeof(struct llhdl_node_constant), LLHDL_NODE_CONSTANT);
 	mpz_init_set(n->p.constant.value, value);
 	n->p.constant.sign = sign;

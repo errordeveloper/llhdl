@@ -128,8 +128,6 @@ struct mapkit_result *tilm_try_partition(struct tilm_sc *sc, struct llhdl_node *
 	}
 	for(i=0;i<nl.nbits;i++)
 		r->input_nets[i] = TILM_CALL_CREATE_NET(sc);
-	for(i=0;i<noutputs;i++)
-		r->output_nets[i] = TILM_CALL_CREATE_NET(sc);
 	
 	/* Clean up */
 	part_node_list_free(&nl);
