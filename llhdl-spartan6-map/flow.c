@@ -129,9 +129,8 @@ static void create_signals(struct flow_sc *sc)
 	}
 }
 
-static void *mkc_constant(int v, void *user)
+struct netlist_net *get_constant(struct flow_sc *sc, int v)
 {
-	struct flow_sc *sc = user;
 	struct netlist_instance *inst;
 
 	if(v) {
@@ -149,6 +148,12 @@ static void *mkc_constant(int v, void *user)
 		}
 		return sc->gnd_net;
 	}
+}
+
+static void *mkc_constant(int v, void *user)
+{
+	struct flow_sc *sc = user;
+	return get_constant(sc, v);
 }
 
 static void *mkc_signal(struct llhdl_node *n, int bit, void *user)

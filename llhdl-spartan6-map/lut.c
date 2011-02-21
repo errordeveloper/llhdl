@@ -29,9 +29,8 @@ static void tc_branch(void *net, void *a, int output, int an, void *user)
 	return netlist_add_branch(net, a, output, an);
 }
 
-static void *tc_create_lut(int inputs, mpz_t contents, void *user)
+struct netlist_instance *lut_create(struct flow_sc *sc, int inputs, mpz_t contents)
 {
-	struct flow_sc *sc = user;
 	int primitive_type;
 	char val[17];
 	struct netlist_instance *inst;
@@ -68,6 +67,12 @@ static void *tc_create_lut(int inputs, mpz_t contents, void *user)
 	inst = netlist_m_instantiate(sc->netlist, &netlist_xilprims[primitive_type]);
 	netlist_set_attribute(inst, "INIT", val);
 	return inst;
+}
+
+static void *tc_create_lut(int inputs, mpz_t contents, void *user)
+{
+	struct flow_sc *sc = user;
+	return lut_create(sc, inputs, contents);
 }
 
 static void *tc_create_mux(int muxlevel, void *user)
