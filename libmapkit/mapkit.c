@@ -129,6 +129,7 @@ static void run_process_unmapped(struct llhdl_node *n, struct mapkit_process_des
 		case LLHDL_NODE_CONSTANT:
 			break;
 		case LLHDL_NODE_LOGIC:
+		case LLHDL_NODE_EXTLOGIC:
 			arity = llhdl_get_logic_arity(n->p.logic.op);
 			for(i=0;i<arity;i++)
 				run_process(&n->p.logic.operands[i], pd);
@@ -145,10 +146,6 @@ static void run_process_unmapped(struct llhdl_node *n, struct mapkit_process_des
 		case LLHDL_NODE_VECT:
 			for(i=0;i<n->p.vect.nslices;i++)
 				run_process(&n->p.vect.slices[i].source, pd);
-			break;
-		case LLHDL_NODE_ARITH:
-			run_process(&n->p.arith.a, pd);
-			run_process(&n->p.arith.b, pd);
 			break;
 		default:
 			assert(0);

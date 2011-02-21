@@ -14,6 +14,11 @@ int llhdl_get_logic_arity(int op)
 		case LLHDL_LOGIC_AND: return 2;
 		case LLHDL_LOGIC_OR: return 2;
 		case LLHDL_LOGIC_XOR: return 2;
+		
+		case LLHDL_EXTLOGIC_ADD: return 2;
+		case LLHDL_EXTLOGIC_SUB: return 2;
+		case LLHDL_EXTLOGIC_MUL: return 2;
+		
 		default: assert(0);
 	}
 	return 0;
@@ -115,7 +120,8 @@ struct llhdl_node *llhdl_create_logic(int op, struct llhdl_node **operands)
 	int arity;
 
 	arity = llhdl_get_logic_arity(op);
-	n = alloc_base_node(sizeof(struct llhdl_node_logic)+arity*sizeof(struct llhdl_node *), LLHDL_NODE_LOGIC);
+	n = alloc_base_node(sizeof(struct llhdl_node_logic)+arity*sizeof(struct llhdl_node *),
+		op < LLHDL_EXTLOGIC_FIRST ? LLHDL_NODE_LOGIC : LLHDL_NODE_EXTLOGIC);
 	n->p.logic.op = op;
 	for(i=0;i<arity;i++)
 		n->p.logic.operands[i] = operands[i];
@@ -163,17 +169,6 @@ struct llhdl_node *llhdl_create_vect(int sign, int nslices, struct llhdl_slice *
 	return n;
 }
 
-struct llhdl_node *llhdl_create_arith(int op, struct llhdl_node *a, struct llhdl_node *b)
-{
-	struct llhdl_node *n;
-
-	n = alloc_base_node(sizeof(struct llhdl_node_arith), LLHDL_NODE_ARITH);
-	n->p.arith.op = op;
-	n->p.arith.a = a;
-	n->p.arith.b = b;
-	return n;
-}
-
 void llhdl_free_node(struct llhdl_node *n)
 {
 	int i;
@@ -189,6 +184,7 @@ void llhdl_free_node(struct llhdl_node *n)
 			mpz_clear(n->p.constant.value);
 			break;
 		case LLHDL_NODE_LOGIC:
+		case LLHDL_NODE_EXTLOGIC:
 			arity = llhdl_get_logic_arity(n->p.logic.op);
 			for(i=0;i<arity;i++)
 				llhdl_free_node(n->p.logic.operands[i]);
@@ -205,10 +201,6 @@ void llhdl_free_node(struct llhdl_node *n)
 		case LLHDL_NODE_VECT:
 			for(i=0;i<n->p.vect.nslices;i++)
 				llhdl_free_node(n->p.vect.slices[i].source);
-			break;
-		case LLHDL_NODE_ARITH:
-			llhdl_free_node(n->p.arith.a);
-			llhdl_free_node(n->p.arith.b);
 			break;
 		default:
 			assert(0);

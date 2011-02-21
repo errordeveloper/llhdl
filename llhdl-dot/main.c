@@ -66,6 +66,7 @@ static unsigned int declare_down(FILE *fd, struct llhdl_node *n)
 			fprintf(fd, "\"];\n");
 			break;
 		case LLHDL_NODE_LOGIC:
+		case LLHDL_NODE_EXTLOGIC:
 			fprintf(fd, "|<op> %s", llhdl_strlogic(n->p.logic.op));
 			arity = llhdl_get_logic_arity(n->p.logic.op);
 			for(i=0;i<arity;i++)
@@ -112,15 +113,6 @@ static unsigned int declare_down(FILE *fd, struct llhdl_node *n)
 				operands[i] = declare_down(fd, n->p.vect.slices[i].source);
 			for(i=0;i<n->p.vect.nslices;i++)
 				fprintf(fd, "N%x:out -> N%x:slice%d%s;\n", operands[i], this_id, i, connect_label(n->p.vect.slices[i].source));
-			free(operands);
-			break;
-		case LLHDL_NODE_ARITH:
-			fprintf(fd, "|<op> %s|<operand0> a|<operand1> b\"];\n", llhdl_strarith(n->p.arith.op));
-			operands = alloc_size(2*sizeof(unsigned int));
-			operands[0] = declare_down(fd, n->p.arith.a);
-			operands[1] = declare_down(fd, n->p.arith.b);
-			fprintf(fd, "N%x:out -> N%x:operand0%s;\n", operands[0], this_id, connect_label(n->p.arith.a));
-			fprintf(fd, "N%x:out -> N%x:operand1%s;\n", operands[1], this_id, connect_label(n->p.arith.b));
 			free(operands);
 			break;
 		default:

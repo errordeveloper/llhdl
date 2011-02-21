@@ -69,9 +69,9 @@ static int op_to_llhdl(int op)
 		case OP_AND: return LLHDL_LOGIC_AND;
 		case OP_OR: return LLHDL_LOGIC_OR;
 		case OP_XOR: return LLHDL_LOGIC_XOR;
-		case OP_ADD: return LLHDL_ARITH_ADD;
-		case OP_SUB: return LLHDL_ARITH_SUB;
-		case OP_MUL: return LLHDL_ARITH_MUL;
+		case OP_ADD: return LLHDL_EXTLOGIC_ADD;
+		case OP_SUB: return LLHDL_EXTLOGIC_SUB;
+		case OP_MUL: return LLHDL_EXTLOGIC_MUL;
 		default:
 			assert(0);
 			return 0;
@@ -226,6 +226,9 @@ static struct llhdl_node *parse_operator(struct llhdl_module *m, char *op, char 
 		case OP_AND:
 		case OP_OR:
 		case OP_XOR:
+		case OP_ADD:
+		case OP_SUB:
+		case OP_MUL:
 			branches = parse_nexpr(m, saveptr, llhdl_get_logic_arity(op_to_llhdl(opc)));
 			n = llhdl_create_logic(op_to_llhdl(opc), branches);
 			break;
@@ -251,12 +254,6 @@ static struct llhdl_node *parse_operator(struct llhdl_module *m, char *op, char 
 			}
 			n = llhdl_create_vect(sign, count, slices);
 			free(slices);
-			break;
-		case OP_ADD:
-		case OP_SUB:
-		case OP_MUL:
-			branches = parse_nexpr(m, saveptr, 2);
-			n = llhdl_create_arith(op_to_llhdl(opc), branches[0], branches[1]);
 			break;
 		default:
 			assert(0);
@@ -451,6 +448,7 @@ static void write_expr(FILE *fd, struct llhdl_node *n)
 			fprintf(fd, "%s", n->p.signal.name);
 			break;
 		case LLHDL_NODE_LOGIC:
+		case LLHDL_NODE_EXTLOGIC:
 			switch(n->p.logic.op) {
 				case LLHDL_LOGIC_NOT:
 					fprintf(fd, "#not");
@@ -463,6 +461,15 @@ static void write_expr(FILE *fd, struct llhdl_node *n)
 					break;
 				case LLHDL_LOGIC_XOR:
 					fprintf(fd, "#xor");
+					break;
+				case LLHDL_EXTLOGIC_ADD:
+					fprintf(fd, "#add");
+					break;
+				case LLHDL_EXTLOGIC_SUB:
+					fprintf(fd, "#sub");
+					break;
+				case LLHDL_EXTLOGIC_MUL:
+					fprintf(fd, "#mul");
 					break;
 				default:
 					assert(0);
@@ -491,24 +498,6 @@ static void write_expr(FILE *fd, struct llhdl_node *n)
 				write_expr(fd, n->p.vect.slices[i].source);
 				fprintf(fd, " %d %d", n->p.vect.slices[i].start, n->p.vect.slices[i].end);
 			}
-			break;
-		case LLHDL_NODE_ARITH:
-			switch(n->p.arith.op) {
-				case LLHDL_ARITH_ADD:
-					fprintf(fd, "#add");
-					break;
-				case LLHDL_ARITH_SUB:
-					fprintf(fd, "#sub");
-					break;
-				case LLHDL_ARITH_MUL:
-					fprintf(fd, "#mul");
-					break;
-				default:
-					assert(0);
-					break;
-			}
-			write_expr(fd, n->p.arith.a);
-			write_expr(fd, n->p.arith.b);
 			break;
 		default:
 			assert(0);

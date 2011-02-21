@@ -12,10 +12,10 @@ const char *llhdl_strtype(int type)
 		case LLHDL_NODE_CONSTANT: return "CONSTANT";
 		case LLHDL_NODE_SIGNAL: return "SIGNAL";
 		case LLHDL_NODE_LOGIC: return "LOGIC";
+		case LLHDL_NODE_EXTLOGIC: return "EXTLOGIC";
 		case LLHDL_NODE_MUX: return "MUX";
 		case LLHDL_NODE_FD: return "FD";
 		case LLHDL_NODE_VECT: return "VECT";
-		case LLHDL_NODE_ARITH: return "ARITH";
 		default: assert(0); return NULL;
 	}
 }
@@ -27,16 +27,11 @@ const char *llhdl_strlogic(int op)
 		case LLHDL_LOGIC_AND: return "AND";
 		case LLHDL_LOGIC_OR: return "OR";
 		case LLHDL_LOGIC_XOR: return "XOR";
-		default: assert(0); return NULL;
-	}
-}
-
-const char *llhdl_strarith(int op)
-{
-	switch(op) {
-		case LLHDL_ARITH_ADD: return "ADD";
-		case LLHDL_ARITH_SUB: return "SUB";
-		case LLHDL_ARITH_MUL: return "MUL";
+		
+		case LLHDL_EXTLOGIC_ADD: return "ADD";
+		case LLHDL_EXTLOGIC_SUB: return "SUB";
+		case LLHDL_EXTLOGIC_MUL: return "MUL";
+		
 		default: assert(0); return NULL;
 	}
 }
@@ -62,6 +57,7 @@ struct llhdl_node *llhdl_dup(struct llhdl_node *n)
 			r = n;
 			break;
 		case LLHDL_NODE_LOGIC:
+		case LLHDL_NODE_EXTLOGIC:
 			arity = llhdl_get_logic_arity(n->p.logic.op);
 			operands = alloc_size(arity*sizeof(struct llhdl_node *));
 			for(i=0;i<arity;i++)
@@ -90,9 +86,6 @@ struct llhdl_node *llhdl_dup(struct llhdl_node *n)
 			r = llhdl_create_vect(n->p.vect.sign, n->p.vect.nslices, slices);
 			free(slices);
 			break;
-		case LLHDL_NODE_ARITH:
-			r = llhdl_create_arith(n->p.arith.op, llhdl_dup(n->p.arith.a), llhdl_dup(n->p.arith.b));
-			break;
 		default:
 			assert(0);
 			break;
@@ -115,6 +108,7 @@ int llhdl_equiv(struct llhdl_node *a, struct llhdl_node *b)
 			if(a != b) return 0;
 			break;
 		case LLHDL_NODE_LOGIC:
+		case LLHDL_NODE_EXTLOGIC:
 			if(a->p.logic.op != b->p.logic.op) return 0;
 			arity = llhdl_get_logic_arity(a->p.logic.op);
 			for(i=0;i<arity;i++)
@@ -139,11 +133,6 @@ int llhdl_equiv(struct llhdl_node *a, struct llhdl_node *b)
 				if(!llhdl_equiv(a->p.vect.slices[i].source, b->p.vect.slices[i].source)) return 0;
 			}
 			break;
-		case LLHDL_NODE_ARITH:
-			if(a->p.arith.op != b->p.arith.op) return 0;
-			if(!llhdl_equiv(a->p.arith.a, b->p.arith.a)) return 0;
-			if(!llhdl_equiv(a->p.arith.b, b->p.arith.b)) return 0;
-			break;
 		default:
 			assert(0);
 			break;
@@ -164,6 +153,7 @@ int llhdl_get_sign(struct llhdl_node *n)
 		case LLHDL_NODE_SIGNAL:
 			return n->p.signal.sign;
 		case LLHDL_NODE_LOGIC:
+		case LLHDL_NODE_EXTLOGIC:
 			sign = 1;
 			arity = llhdl_get_logic_arity(n->p.logic.op);
 			for(i=0;i<arity;i++)
@@ -180,8 +170,6 @@ int llhdl_get_sign(struct llhdl_node *n)
 			return llhdl_get_sign(n->p.fd.data);
 		case LLHDL_NODE_VECT:
 			return n->p.vect.sign;
-		case LLHDL_NODE_ARITH:
-			return llhdl_get_sign(n->p.arith.a) && llhdl_get_sign(n->p.arith.b);
 		default:
 			assert(0);
 			break;
@@ -209,6 +197,19 @@ int llhdl_get_vectorsize(struct llhdl_node *n)
 					count = v;
 			}
 			return count;
+		case LLHDL_NODE_EXTLOGIC:
+			switch(n->p.logic.op) {
+				case LLHDL_EXTLOGIC_ADD:
+				case LLHDL_EXTLOGIC_SUB:
+					return max(llhdl_get_vectorsize(n->p.logic.operands[0]),
+						llhdl_get_vectorsize(n->p.logic.operands[1])) + 1;
+				case LLHDL_EXTLOGIC_MUL:
+					return llhdl_get_vectorsize(n->p.logic.operands[0]) + llhdl_get_vectorsize(n->p.logic.operands[1]);
+				default:
+					assert(0);
+					break;
+			}
+			break;
 		case LLHDL_NODE_MUX:
 			count = 0;
 			for(i=0;i<n->p.mux.nsources;i++) {
@@ -224,19 +225,6 @@ int llhdl_get_vectorsize(struct llhdl_node *n)
 			for(i=0;i<n->p.vect.nslices;i++)
 				count += n->p.vect.slices[i].end - n->p.vect.slices[i].start + 1;
 			return count;
-		case LLHDL_NODE_ARITH:
-			switch(n->p.arith.op) {
-				case LLHDL_ARITH_ADD:
-				case LLHDL_ARITH_SUB:
-					return max(llhdl_get_vectorsize(n->p.arith.a),
-						llhdl_get_vectorsize(n->p.arith.b)) + 1;
-				case LLHDL_ARITH_MUL:
-					return llhdl_get_vectorsize(n->p.arith.a) + llhdl_get_vectorsize(n->p.arith.b);
-				default:
-					assert(0);
-					break;
-			}
-			break;
 		default:
 			assert(0);
 			break;
@@ -262,6 +250,7 @@ static int llhdl_walk_s(struct llhdl_walk_param *p, struct llhdl_node **n2)
 		case LLHDL_NODE_CONSTANT:
 			break;
 		case LLHDL_NODE_LOGIC:
+		case LLHDL_NODE_EXTLOGIC:
 			arity = llhdl_get_logic_arity(n->p.logic.op);
 			for(i=0;i<arity;i++)
 				if(!llhdl_walk_s(p, &n->p.logic.operands[i])) return 0;
@@ -278,10 +267,6 @@ static int llhdl_walk_s(struct llhdl_walk_param *p, struct llhdl_node **n2)
 		case LLHDL_NODE_VECT:
 			for(i=0;i<n->p.vect.nslices;i++)
 				if(!llhdl_walk_s(p, &n->p.vect.slices[i].source)) return 0;
-			return 1;
-		case LLHDL_NODE_ARITH:
-			if(!llhdl_walk_s(p, &n->p.arith.a)) return 0;
-			if(!llhdl_walk_s(p, &n->p.arith.b)) return 0;
 			return 1;
 		default:
 			assert(0);

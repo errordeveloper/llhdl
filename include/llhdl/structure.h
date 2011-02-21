@@ -32,8 +32,14 @@ enum {
 	LLHDL_LOGIC_NOT,
 	LLHDL_LOGIC_AND,
 	LLHDL_LOGIC_OR,
-	LLHDL_LOGIC_XOR
+	LLHDL_LOGIC_XOR,
+	
+	LLHDL_EXTLOGIC_ADD,
+	LLHDL_EXTLOGIC_SUB,
+	LLHDL_EXTLOGIC_MUL,
 };
+
+#define LLHDL_EXTLOGIC_FIRST LLHDL_EXTLOGIC_ADD
 
 struct llhdl_node_logic {
 	int op;
@@ -64,25 +70,13 @@ struct llhdl_node_vect {
 };
 
 enum {
-	LLHDL_ARITH_ADD,
-	LLHDL_ARITH_SUB,
-	LLHDL_ARITH_MUL
-};
-
-struct llhdl_node_arith {
-	int op;
-	struct llhdl_node *a;
-	struct llhdl_node *b;
-};
-
-enum {
 	LLHDL_NODE_CONSTANT,
 	LLHDL_NODE_SIGNAL,
 	LLHDL_NODE_LOGIC,
+	LLHDL_NODE_EXTLOGIC,
 	LLHDL_NODE_MUX,
 	LLHDL_NODE_FD,
 	LLHDL_NODE_VECT,
-	LLHDL_NODE_ARITH
 };
 
 struct llhdl_node {
@@ -91,11 +85,10 @@ struct llhdl_node {
 	union {
 		struct llhdl_node_constant constant;
 		struct llhdl_node_signal signal;
-		struct llhdl_node_logic logic;
+		struct llhdl_node_logic logic; /* < also EXTLOGIC */
 		struct llhdl_node_mux mux;
 		struct llhdl_node_fd fd;
 		struct llhdl_node_vect vect;
-		struct llhdl_node_arith arith;
 	} p;
 };
 
@@ -116,7 +109,6 @@ struct llhdl_node *llhdl_create_logic(int op, struct llhdl_node **operands);
 struct llhdl_node *llhdl_create_mux(int nsources, struct llhdl_node *select, struct llhdl_node **sources);
 struct llhdl_node *llhdl_create_fd(struct llhdl_node *clock, struct llhdl_node *data);
 struct llhdl_node *llhdl_create_vect(int sign, int nslices, struct llhdl_slice *slices);
-struct llhdl_node *llhdl_create_arith(int op, struct llhdl_node *a, struct llhdl_node *b);
 void llhdl_free_node(struct llhdl_node *n); /* < does not free signals */
 void llhdl_free_signal(struct llhdl_node *n);
 
