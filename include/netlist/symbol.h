@@ -1,6 +1,8 @@
 #ifndef __NETLIST_SYMBOL_H
 #define __NETLIST_SYMBOL_H
 
+#include <stdio.h>
+
 struct netlist_sym {
 	struct netlist_sym *next;
 	void *user;

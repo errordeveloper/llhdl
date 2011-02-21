@@ -20,6 +20,7 @@
 
 #include <bd/bd.h>
 
+#include "commonstruct.h"
 #include "dsp.h"
 #include "carryarith.h"
 #include "srl16.h"
@@ -129,31 +130,10 @@ static void create_signals(struct flow_sc *sc)
 	}
 }
 
-struct netlist_net *get_constant(struct flow_sc *sc, int v)
-{
-	struct netlist_instance *inst;
-
-	if(v) {
-		if(sc->vcc_net == NULL) {
-			inst = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_VCC]);
-			sc->vcc_net = netlist_m_create_net(sc->netlist);
-			netlist_add_branch(sc->vcc_net, inst, 1, NETLIST_XIL_VCC_P);
-		}
-		return sc->vcc_net;
-	} else {
-		if(sc->gnd_net == NULL) {
-			inst = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_GND]);
-			sc->gnd_net = netlist_m_create_net(sc->netlist);
-			netlist_add_branch(sc->gnd_net, inst, 1, NETLIST_XIL_GND_G);
-		}
-		return sc->gnd_net;
-	}
-}
-
 static void *mkc_constant(int v, void *user)
 {
 	struct flow_sc *sc = user;
-	return get_constant(sc, v);
+	return cs_constant_net(sc, v);
 }
 
 static void *mkc_signal(struct llhdl_node *n, int bit, void *user)
@@ -241,4 +221,3 @@ void run_flow(struct flow_settings *settings)
 	netlist_free_iop_manager(sc.netlist_iop);
 	llhdl_free_module(sc.module);
 }
-

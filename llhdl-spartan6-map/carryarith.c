@@ -16,7 +16,7 @@
 #include <mapkit/mapkit.h>
 
 #include "flow.h"
-#include "lut.h"
+#include "commonstruct.h"
 #include "carryarith.h"
 
 static struct netlist_instance *make_input_lut(struct flow_sc *sc, int sub)
@@ -25,7 +25,7 @@ static struct netlist_instance *make_input_lut(struct flow_sc *sc, int sub)
 	mpz_t contents;
 	
 	mpz_init_set_ui(contents, sub ? 0x9 : 0x6);
-	lut = lut_create(sc, 2, contents);
+	lut = cs_create_lut(sc, 2, contents);
 	mpz_clear(contents);
 	return lut;
 }
@@ -54,14 +54,14 @@ static void mkc_process(struct llhdl_node **n2, void *user)
 		result->input_nodes[1] = &n->p.logic.operands[1];
 		
 		an = bn = NULL;
-		mn = get_constant(sc,sub);
+		mn = cs_constant_net(sc,sub);
 		for(i=0;i<n_bits;i++) {
 			if(i < n_bits_a) {
 				an = netlist_m_create_net(sc->netlist);
 				result->input_nets[i] = an;
 			} else {
 				if(!llhdl_get_sign(n->p.logic.operands[0]))
-					an = get_constant(sc, 0);
+					an = cs_constant_net(sc, 0);
 				/* otherwise, an keeps the MSB, which is what we want. */
 			}
 			if(i < n_bits_b) {
@@ -69,7 +69,7 @@ static void mkc_process(struct llhdl_node **n2, void *user)
 				result->input_nets[n_bits_a+i] = bn;
 			} else {
 				if(!llhdl_get_sign(n->p.logic.operands[1]))
-					bn = get_constant(sc, 0);
+					bn = cs_constant_net(sc, 0);
 				/* otherwise, bn keeps the MSB, which is what we want. */
 			}
 			
@@ -99,7 +99,7 @@ static void mkc_process(struct llhdl_node **n2, void *user)
 		/* last bit of the result is carry out (addition) or ~carry out (subtraction) */
 		if(sub) {
 			xorcy = netlist_m_instantiate(sc->netlist, &netlist_xilprims[NETLIST_XIL_XORCY]);
-			netlist_add_branch(get_constant(sc, 1), xorcy, 0, NETLIST_XIL_XORCY_LI);
+			netlist_add_branch(cs_constant_net(sc, 1), xorcy, 0, NETLIST_XIL_XORCY_LI);
 			netlist_add_branch(mn, xorcy, 0, NETLIST_XIL_XORCY_CI);
 			rn = netlist_m_create_net(sc->netlist);
 			netlist_add_branch(rn, xorcy, 1, NETLIST_XIL_XORCY_O);

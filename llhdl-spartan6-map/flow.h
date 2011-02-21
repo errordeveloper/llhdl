@@ -42,8 +42,6 @@ struct flow_sc {
 	struct mapkit_sc *mapkit;
 };
 
-struct netlist_net *get_constant(struct flow_sc *sc, int v); /* < TODO: move this */
-
 void run_flow(struct flow_settings *settings);
 
 #endif /* __FLOW_H */
