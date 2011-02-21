@@ -39,9 +39,15 @@ static void *tc_create_lut(int inputs, mpz_t contents, void *user)
 
 static void *tc_create_mux(int muxlevel, void *user)
 {
-	//struct flow_sc *sc = user;
-	/* TODO: support MUXF7 and MUXF8 */
-	return NULL;
+	struct flow_sc *sc = user;
+	int type;
+
+	switch(muxlevel) {
+		case 0: type = NETLIST_XIL_MUXF7;
+		case 1: type = NETLIST_XIL_MUXF8;
+		default: return NULL;
+	}
+	return netlist_m_instantiate(sc->netlist, &netlist_xilprims[type]);
 }
 
 void lut_register(struct flow_sc *sc)

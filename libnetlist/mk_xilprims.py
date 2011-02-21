@@ -84,6 +84,18 @@ primitives = [
 		outputs = [(1, "O")]
 	),
 	Primitive(
+		name = "MUXF7",
+		attributes = [],
+		inputs = [(1, "S"), (1, "I0"), (1, "I1")],
+		outputs = [(1, "O")]
+	),
+	Primitive(
+		name = "MUXF8",
+		attributes = [],
+		inputs = [(1, "S"), (1, "I0"), (1, "I1")],
+		outputs = [(1, "O")]
+	),
+	Primitive(
 		name = "MUXCY",
 		attributes = [],
 		inputs = [(1, "S"), (1, "DI"), (1, "CI")],
