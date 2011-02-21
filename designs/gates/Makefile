@@ -4,7 +4,7 @@ gates.lhd: gates.v
 	llhdl-verilog gates.v gates.lhd
 
 gates.edf: gates.lhd
-	llhdl-spartan6-map gates.lhd gates.edf gates.sym
+	llhdl-spartan6-map -e gates.edf -s gates.sym gates.lhd
 
 gates.sym: gates.edf
 
