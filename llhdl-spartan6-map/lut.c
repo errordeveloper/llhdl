@@ -61,7 +61,7 @@ struct netlist_instance *lut_create(struct flow_sc *sc, int inputs, mpz_t conten
 			break;
 		case 6:
 			primitive_type = NETLIST_XIL_LUT6;
-			gmp_sprintf(val, "%16Zx", contents);
+			gmp_sprintf(val, "%016Zx", contents);
 			break;
 	}
 	inst = netlist_m_instantiate(sc->netlist, &netlist_xilprims[primitive_type]);
