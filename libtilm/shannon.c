@@ -81,9 +81,18 @@ static struct llhdl_node *eval(struct tilm_variables *var, int obit, struct llhd
 				values[i] = eval(var, obit, n->p.logic.operands[i]);
 			mpz_init(v);
 			switch(n->p.logic.op) {
-				case LLHDL_LOGIC_NOT:
-					mpz_com(v, values[0]->p.constant.value);
+				case LLHDL_LOGIC_NOT: {
+					mpz_t h;
+					int count;
+					
+					count = llhdl_get_vectorsize(values[0]);
+					mpz_init2(h, count);
+					for(i=0;i<count;i++)
+						mpz_setbit(h, i);
+					mpz_xor(v, h, values[0]->p.constant.value);
+					mpz_clear(h);
 					break;
+				}
 				case LLHDL_LOGIC_AND:
 					mpz_and(v, values[0]->p.constant.value, values[1]->p.constant.value);
 					break;
@@ -107,6 +116,7 @@ static struct llhdl_node *eval(struct tilm_variables *var, int obit, struct llhd
 			value = eval(var, obit, n->p.mux.select);
 			i = mpz_get_si(value->p.constant.value);
 			llhdl_free_node(value);
+			assert(i >= 0);
 			if(i < n->p.mux.nsources) {
 				r = eval(var, obit, n->p.mux.sources[i]);
 				r->p.constant.sign = llhdl_get_sign(n);
@@ -149,6 +159,10 @@ static void eval_and_set(struct map_level_param *mlp, mpz_t result)
 
 static void eval_multi(struct map_level_param *mlp, struct tilm_variable *v, mpz_t result)
 {
+	if(v == NULL) {
+		eval_and_set(mlp, result);
+		return;
+	}
 	if(v->next == NULL) {
 		v->value = 1;
 		eval_and_set(mlp, result);
