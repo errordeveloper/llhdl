@@ -3,7 +3,7 @@
 
 #include "flow.h"
 
-void lut_register(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param);
+void lut_register(struct flow_sc *sc);
 
 #endif /* __LUT_H */
 

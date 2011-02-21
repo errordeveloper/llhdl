@@ -77,16 +77,16 @@ static void *tc_create_mux(int muxlevel, void *user)
 	return NULL;
 }
 
-void lut_register(struct flow_sc *sc, int lutmapper, void *lutmapper_extra_param)
+void lut_register(struct flow_sc *sc)
 {
 	tilm_register(sc->mapkit,
-		lutmapper,
-		6,
-		lutmapper_extra_param,
+		sc->settings->lut_mapper,
+		sc->settings->lut_max_inputs,
+		sc->settings->lutmapper_extra_param,
 		tc_create_net,
 		tc_branch,
 		tc_create_lut,
-		tc_create_mux,
+		sc->settings->dedicated_muxes ? tc_create_mux : NULL,
 		sc);
 }
 

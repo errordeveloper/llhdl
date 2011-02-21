@@ -8,7 +8,31 @@
 #include <netlist/symbol.h>
 #include <mapkit/mapkit.h>
 
+struct flow_settings {
+	const char *input_lhd;
+	
+	const char *part;
+
+	int io_buffers;
+	int dsp;
+	int carry_chains;
+	int srl16;
+	int dedicated_muxes;
+	int prune;
+	
+	int lut_mapper;
+	int lut_max_inputs;
+	void *lutmapper_extra_param;
+
+	char *output_anl;
+	char *output_edf;
+	char *output_dot;
+	char *output_sym;
+};
+
 struct flow_sc {
+	struct flow_settings *settings;
+	
 	struct llhdl_module *module;
 	struct netlist_iop_manager *netlist_iop;
 	struct netlist_manager *netlist;
@@ -18,7 +42,7 @@ struct flow_sc {
 	struct mapkit_sc *mapkit;
 };
 
-void run_flow(const char *input_lhd, const char *output_edf, const char *output_sym, const char *part, int lutmapper, void *lutmapper_extra_param);
+void run_flow(struct flow_settings *settings);
 
 #endif /* __FLOW_H */
 
