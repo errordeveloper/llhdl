@@ -207,6 +207,11 @@ void run_flow(struct flow_settings *settings)
 	create_signals(&sc);
 	/* Run the meta-mapper */
 	mapkit_metamap(sc.mapkit);
+	mapkit_free(sc.mapkit);
+	
+	/* Prune netlist */
+	if(settings->prune)
+		netlist_m_prune(sc.netlist);
 	
 	/* Write output files */
 	if(settings->output_edf != NULL)
@@ -215,7 +220,6 @@ void run_flow(struct flow_settings *settings)
 		netlist_sym_to_file(sc.symbols, settings->output_sym);
 	
 	/* Clean up */
-	mapkit_free(sc.mapkit);
 	netlist_sym_freestore(sc.symbols);
 	netlist_m_free(sc.netlist);
 	netlist_free_iop_manager(sc.netlist_iop);

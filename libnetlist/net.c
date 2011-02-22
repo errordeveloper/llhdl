@@ -13,6 +13,7 @@ struct netlist_instance *netlist_instantiate(unsigned int uid, struct netlist_pr
 	new = alloc_type(struct netlist_instance);
 	
 	new->uid = uid;
+	new->dont_touch = 0;
 	new->p = p;
 
 	if(p->attribute_count > 0) {
@@ -118,6 +119,29 @@ void netlist_add_branch(struct netlist_net *net, struct netlist_instance *inst, 
 	branch->pin_index = pin_index;
 	branch->next = net->head;
 	net->head = branch;
+}
+
+void netlist_disconnect_instance(struct netlist_net *net, struct netlist_instance *inst)
+{
+	struct netlist_branch *b1, *b2, *prev;
+	
+	if(net->head == NULL) return;
+	prev = NULL;
+	b1 = net->head;
+	while(b1 != NULL) {
+		if(b1->inst == inst) {
+			b2 = b1->next;
+			free(b1);
+			if(prev != NULL)
+				prev->next = b2;
+			else
+				net->head = b2;
+			b1 = b2;
+		} else {
+			prev = b1;
+			b1 = b1->next;
+		}
+	}
 }
 
 void netlist_free_net(struct netlist_net *net)

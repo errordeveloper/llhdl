@@ -21,6 +21,7 @@ struct netlist_primitive {
 
 struct netlist_instance {
 	unsigned int uid;		/* < unique identifier */
+	int dont_touch;			/* < do not prune */
 	struct netlist_primitive *p;	/* < what primitive we are an instance of */
 	char **attributes;		/* < attributes of this instance */
 	struct netlist_instance *next;	/* < next instance in this manager */
@@ -49,6 +50,7 @@ struct netlist_net *netlist_create_net(unsigned int uid);
 struct netlist_net *netlist_resolve_joined(struct netlist_net *net);
 void netlist_join(struct netlist_net *resulting, struct netlist_net *tomerge);
 void netlist_add_branch(struct netlist_net *net, struct netlist_instance *inst, int output, int pin_index);
+void netlist_disconnect_instance(struct netlist_net *net, struct netlist_instance *inst); /* < does nothing on redirected nets */
 void netlist_free_net(struct netlist_net *net);
 
 #endif /* __NETLIST_NET_H */

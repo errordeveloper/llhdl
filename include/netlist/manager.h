@@ -14,4 +14,8 @@ struct netlist_instance *netlist_m_instantiate(struct netlist_manager *m, struct
 struct netlist_net *netlist_m_create_net(struct netlist_manager *m);
 struct netlist_net *netlist_m_create_net_with_branch(struct netlist_manager *m, struct netlist_instance *inst, int output, int pin_index);
 
+void netlist_m_delete_instance(struct netlist_manager *m, struct netlist_instance *inst);
+int netlist_m_prune_pass(struct netlist_manager *m);
+void netlist_m_prune(struct netlist_manager *m);
+
 #endif /* __NETLIST_MANAGER_H */
