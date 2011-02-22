@@ -1,6 +1,8 @@
 #ifndef __NETLIST_EDIF_H
 #define __NETLIST_EDIF_H
 
+#include <netlist/manager.h>
+
 enum {
 	EDIF_FLAVOR_VANILLA,
 	EDIF_FLAVOR_XILINX,

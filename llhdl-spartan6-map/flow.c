@@ -7,10 +7,12 @@
 
 #include <netlist/net.h>
 #include <netlist/manager.h>
-#include <netlist/edif.h>
 #include <netlist/io.h>
 #include <netlist/xilprims.h>
 #include <netlist/symbol.h>
+#include <netlist/antares.h>
+#include <netlist/edif.h>
+#include <netlist/dot.h>
 
 #include <llhdl/structure.h>
 #include <llhdl/exchange.h>
@@ -173,7 +175,6 @@ static void mkc_join(void *a, void *b, void *user)
 void run_flow(struct flow_settings *settings)
 {
 	struct flow_sc sc;
-	struct edif_param edif_param;
 
 	/* Initialize */
 	sc.settings = settings;
@@ -184,12 +185,6 @@ void run_flow(struct flow_settings *settings)
 	sc.vcc_net = NULL;
 	sc.gnd_net = NULL;
 	sc.mapkit = mapkit_new(sc.module, mkc_constant, mkc_signal, mkc_join, &sc);
-
-	edif_param.flavor = EDIF_FLAVOR_XILINX;
-	edif_param.design_name = sc.module->name;
-	edif_param.cell_library = "UNISIMS";
-	edif_param.part = (char *)settings->part;
-	edif_param.manufacturer = "Xilinx";
 	
 	/* Build the meta-mapper process stack */
 	if(settings->dsp)
@@ -214,8 +209,19 @@ void run_flow(struct flow_settings *settings)
 		netlist_m_prune(sc.netlist);
 	
 	/* Write output files */
-	if(settings->output_edf != NULL)
+	if(settings->output_anl != NULL)
+		netlist_m_antares_file(sc.netlist, settings->output_anl, sc.module->name, settings->part);
+	if(settings->output_edf != NULL) {
+		struct edif_param edif_param;
+		edif_param.flavor = EDIF_FLAVOR_XILINX;
+		edif_param.design_name = sc.module->name;
+		edif_param.cell_library = "UNISIMS";
+		edif_param.part = settings->part;
+		edif_param.manufacturer = "Xilinx";
 		netlist_m_edif_file(sc.netlist, settings->output_edf, &edif_param);
+	}
+	if(settings->output_dot != NULL)
+		netlist_m_dot_file(sc.netlist, settings->output_dot);
 	if(settings->output_sym)
 		netlist_sym_to_file(sc.symbols, settings->output_sym);
 	

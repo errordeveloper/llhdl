@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
 				exit(EXIT_SUCCESS);
 				break;
 			case 'p':
-				flow_settings.part = validate_part(optarg);
+				flow_settings.part = (char *)validate_part(optarg);
 				if(flow_settings.part == NULL) {
 					fprintf(stderr, "Unknown part: %s. Use -h to list supported parts.\n", optarg);
 					exit(EXIT_FAILURE);

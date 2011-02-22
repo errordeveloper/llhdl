@@ -9,9 +9,9 @@
 #include <mapkit/mapkit.h>
 
 struct flow_settings {
-	const char *input_lhd;
+	char *input_lhd;
 	
-	const char *part;
+	char *part;
 
 	int io_buffers;
 	int dsp;
