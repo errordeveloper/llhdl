@@ -221,7 +221,7 @@ void run_flow(struct flow_settings *settings)
 		netlist_m_edif_file(sc.netlist, settings->output_edf, &edif_param);
 	}
 	if(settings->output_dot != NULL)
-		netlist_m_dot_file(sc.netlist, settings->output_dot);
+		netlist_m_dot_file(sc.netlist, settings->output_dot, sc.module->name);
 	if(settings->output_sym)
 		netlist_sym_to_file(sc.symbols, settings->output_sym);
 	
