@@ -176,6 +176,20 @@ static void eval_multi(struct map_level_param *mlp, struct tilm_variable *v, mpz
 	}
 }
 
+static int is_n_ones(mpz_t v, int n)
+{
+	int i;
+	mpz_t c;
+	int r;
+	
+	mpz_init2(c, n);
+	for(i=0;i<n;i++)
+		mpz_setbit(c, i);
+	r = mpz_cmp(v, c) == 0;
+	mpz_clear(c);
+	return r;
+}
+
 static void *fit_into_lut(struct map_level_param *mlp, struct tilm_variable *v)
 {
 	int varcount;
@@ -191,7 +205,13 @@ static void *fit_into_lut(struct map_level_param *mlp, struct tilm_variable *v)
 	mpz_init2(contents, 1 << varcount);
 	eval_multi(mlp, v, contents);
 	
-	if(varcount == 0)
+	if(mpz_sgn(contents) == 0)
+		/* LUT output does not depend on inputs and is always 0 */
+		lut_net = TILM_CALL_CONSTANT(mlp->sc, 0);
+	else if(is_n_ones(contents, 1 << varcount))
+		/* LUT output does not depend on inputs and is always 1 */
+		lut_net = TILM_CALL_CONSTANT(mlp->sc, 1);
+	else if(varcount == 0)
 		/* Constant */
 		lut_net = TILM_CALL_CONSTANT(mlp->sc, mpz_get_ui(contents));
 	else if((varcount == 1) && (mpz_get_ui(contents) == 2))
@@ -257,6 +277,9 @@ static void *decompose(struct map_level_param *mlp, struct tilm_variable *v, int
 	negative_net = map_level(mlp, v->next);
 	v->value = 1;
 	positive_net = map_level(mlp, v->next);
+	
+	if(negative_net == positive_net)
+		return negative_net;
 	
 	select_net = mapkit_find_input_net(mlp->r, v->n, v->bit);
 	
