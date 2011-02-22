@@ -243,9 +243,9 @@ static void *create_mux(struct tilm_sc *sc, int muxlevel)
 	return r;
 }
 
-static void *map_level(struct map_level_param *mlp, struct tilm_variable *v, int level);
+static void *map_level(struct map_level_param *mlp, struct tilm_variable *v);
 
-static void *decompose(struct map_level_param *mlp, struct tilm_variable *v, int level)
+static void *decompose(struct map_level_param *mlp, struct tilm_variable *v, int muxlevel)
 {
 	void *negative_net;
 	void *positive_net;
@@ -254,13 +254,13 @@ static void *decompose(struct map_level_param *mlp, struct tilm_variable *v, int
 	void *mux_net;
 	
 	v->value = 0;
-	negative_net = map_level(mlp, v->next, level+1);
+	negative_net = map_level(mlp, v->next);
 	v->value = 1;
-	positive_net = map_level(mlp, v->next, level+1);
+	positive_net = map_level(mlp, v->next);
 	
 	select_net = mapkit_find_input_net(mlp->r, v->n, v->bit);
 	
-	mux = create_mux(mlp->sc, level);
+	mux = create_mux(mlp->sc, muxlevel);
 	TILM_CALL_BRANCH(mlp->sc, select_net, mux, 0, 0);
 	TILM_CALL_BRANCH(mlp->sc, negative_net, mux, 0, 1);
 	TILM_CALL_BRANCH(mlp->sc, positive_net, mux, 0, 2);
@@ -271,7 +271,7 @@ static void *decompose(struct map_level_param *mlp, struct tilm_variable *v, int
 	return mux_net;
 }
 
-static void *map_level(struct map_level_param *mlp, struct tilm_variable *v, int level)
+static void *map_level(struct map_level_param *mlp, struct tilm_variable *v)
 {
 	int varcount;
 	
@@ -279,7 +279,7 @@ static void *map_level(struct map_level_param *mlp, struct tilm_variable *v, int
 	if(varcount <= mlp->sc->max_inputs)
 		return fit_into_lut(mlp, v);
 	else
-		return decompose(mlp, v, level);
+		return decompose(mlp, v, varcount - mlp->sc->max_inputs - 1);
 }
 
 void tilm_process_shannon(struct tilm_sc *sc, struct llhdl_node **n)
@@ -296,7 +296,7 @@ void tilm_process_shannon(struct tilm_sc *sc, struct llhdl_node **n)
 	
 	vectorsize = llhdl_get_vectorsize(*n);
 	for(mlp.obit=0;mlp.obit<vectorsize;mlp.obit++)
-		mlp.r->output_nets[mlp.obit] = map_level(&mlp, mlp.var->heads[mlp.obit], 0);
+		mlp.r->output_nets[mlp.obit] = map_level(&mlp, mlp.var->heads[mlp.obit]);
 
 	tilm_variables_free(mlp.var);
 	mapkit_consume(sc->mapkit, *n, mlp.r);

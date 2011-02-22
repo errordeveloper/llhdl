@@ -43,8 +43,8 @@ static void *tc_create_mux(int muxlevel, void *user)
 	int type;
 
 	switch(muxlevel) {
-		case 0: type = NETLIST_XIL_MUXF7;
-		case 1: type = NETLIST_XIL_MUXF8;
+		case 0: type = NETLIST_XIL_MUXF7; break;
+		case 1: type = NETLIST_XIL_MUXF8; break;
 		default: return NULL;
 	}
 	return netlist_m_instantiate(sc->netlist, &netlist_xilprims[type]);
