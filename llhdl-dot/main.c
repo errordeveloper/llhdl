@@ -179,6 +179,8 @@ int main(int argc, char *argv[])
 		perror("Unable to close output file");
 		exit(EXIT_FAILURE);
 	}
+	
+	llhdl_free_module(m);
 
 	return 0;
 }
