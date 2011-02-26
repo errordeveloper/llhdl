@@ -22,4 +22,4 @@ Build/installation instructions:
 Then you can try the example designs in the "designs" folder. Xilinx ISE is
 still needed for the place and route and bitstream encoding phases.
 
-Homepage: http://www.milkymist.org/llhdl
+Homepage: http://www.milkymist.org/fpgatools
