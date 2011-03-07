@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
 #include <util.h>
 
 #include <banner/banner.h>
@@ -52,8 +53,37 @@ static char *process_line(struct netlist_sym_store *sym, char *line)
 	return replacement;
 }
 
+static void help()
+{
+	banner("UCF symbol resolver");
+	printf("Usage: llhdl-resolveucf [parameters] <input.ucf>\n");
+	printf("The input UCF (input.ucf) is mandatory.\n");
+	printf("Parameters are:\n");
+	printf("  -h Display this help text and exit.\n");
+	printf("  -s <symbols.sym> Specify the symbol file.\n");
+	printf("  -o <output.ucf> Set the name of the output file.\n");
+}
+
+static char *file_suffix(char *inname, char *suffix)
+{
+	char *c;
+	int r;
+	char *out;
+	
+	inname = stralloc(inname);
+	c = strrchr(inname, '.');
+	if(c != NULL)
+		*c = 0;
+	r = asprintf(&out, "%s%s", inname, suffix);
+	if(r == -1) abort();
+	free(inname);
+	return out;
+}
+
 int main(int argc, char *argv[])
 {
+	int opt;
+	char *inname, *symname, *outname;
 	FILE *fd_in, *fd_out;
 	struct netlist_sym_store *sym;
 	int r;
@@ -62,20 +92,47 @@ int main(int argc, char *argv[])
 	char *replacement;
 	int err;
 
-	if(argc != 4) {
-		banner("UCF symbol resolver");
-		printf("Usage: llhdl-resolveucf <input.ucf> <symbols.sym> <output.ucf>\n");
-		return 1;
+	symname = NULL;
+	outname = NULL;
+	while((opt = getopt(argc, argv, "ho:")) != -1) {
+		switch(opt) {
+			case 'h':
+				help();
+				exit(EXIT_SUCCESS);
+				break;
+			case 's':
+				free(symname);
+				symname = stralloc(optarg);
+				break;
+			case 'o':
+				free(outname);
+				outname = stralloc(optarg);
+				break;
+			default:
+				fprintf(stderr, "Invalid option passed. Use -h for help.\n");
+				exit(EXIT_FAILURE);
+				break;
+		}
 	}
+	
+	if((argc - optind) != 1) {
+		fprintf(stderr, "llhdl-resolveucf: missing input file. Use -h for help.\n");
+		exit(EXIT_FAILURE);
+	}
+	inname = argv[optind];
+	if(symname == NULL)
+		symname = file_suffix(inname, ".sym");
+	if(outname == NULL)
+		outname = file_suffix(inname, "-resolved.ucf");
 
-	fd_in = fopen(argv[1], "r");
+	fd_in = fopen(inname, "r");
 	if(fd_in == NULL) {
 		perror("Error opening input file");
 		exit(EXIT_FAILURE);
 	}
 	sym = netlist_sym_newstore();
-	netlist_sym_from_file(sym, argv[2]);
-	fd_out = fopen(argv[3], "w");
+	netlist_sym_from_file(sym, symname);
+	fd_out = fopen(outname, "w");
 	if(fd_out == NULL) {
 		perror("Error opening output file");
 		exit(EXIT_FAILURE);
@@ -106,6 +163,9 @@ int main(int argc, char *argv[])
 	fclose(fd_in);
 	r = fclose(fd_out);
 	assert(r == 0);
+	
+	free(symname);
+	free(outname);
 
 	return err;
 }

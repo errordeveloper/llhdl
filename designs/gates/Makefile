@@ -1,7 +1,7 @@
 all: ise/gates.bit
 
 gates.lhd: gates.v
-	llhdl-verilog gates.v gates.lhd
+	llhdl-verilog gates.v
 
 gates.edf: gates.lhd
 	llhdl-spartan6-map -e gates.edf -s gates.sym gates.lhd
@@ -9,7 +9,7 @@ gates.edf: gates.lhd
 gates.sym: gates.edf
 
 gates-resolved.ucf: gates.ucf gates.sym
-	llhdl-resolveucf gates.ucf gates.sym gates-resolved.ucf
+	llhdl-resolveucf gates.ucf
 
 ise/gates.ngd: gates.edf gates-resolved.ucf
 	cd ise && ngdbuild -uc ../gates-resolved.ucf ../gates.edf

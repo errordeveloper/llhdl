@@ -1,7 +1,7 @@
 all: ise/blinker.bit
 
 blinker.lhd: blinker.v
-	llhdl-verilog blinker.v blinker.lhd
+	llhdl-verilog blinker.v
 
 blinker.edf: blinker.lhd
 	llhdl-spartan6-map -e blinker.edf -s blinker.sym blinker.lhd
@@ -9,7 +9,7 @@ blinker.edf: blinker.lhd
 blinker.sym: blinker.edf
 
 blinker-resolved.ucf: blinker.ucf blinker.sym
-	llhdl-resolveucf blinker.ucf blinker.sym blinker-resolved.ucf
+	llhdl-resolveucf blinker.ucf
 
 ise/blinker.ngd: blinker.edf blinker-resolved.ucf
 	cd ise && ngdbuild -uc ../blinker-resolved.ucf ../blinker.edf

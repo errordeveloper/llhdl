@@ -147,24 +147,69 @@ static void declare_arcs(FILE *fd, struct llhdl_module *m)
 static void help()
 {
 	banner("Dot (Graphviz) generator");
-	printf("Usage: llhdl-dot <input.lhd> <output.dot> [\"labels\"]\n");
-	exit(EXIT_FAILURE);
+	printf("Usage: llhdl-dot [parameters] <input.lhd>\n");
+	printf("The input design in LLHDL interchange format (input.lhd) is mandatory.\n");
+	printf("Parameters are:\n");
+	printf("  -h Display this help text and exit.\n");
+	printf("  -o <output.dot> Set the name of the output file.\n");
+	printf("  -l Label arcs.\n");
+}
+
+static char *mk_outname(char *inname)
+{
+	char *c;
+	int r;
+	char *out;
+	
+	inname = stralloc(inname);
+	c = strrchr(inname, '.');
+	if(c != NULL)
+		*c = 0;
+	r = asprintf(&out, "%s.dot", inname);
+	if(r == -1) abort();
+	free(inname);
+	return out;
 }
 
 int main(int argc, char *argv[])
 {
+	int opt;
+	char *inname;
+	char *outname;
 	struct llhdl_module *m;
 	FILE *fd;
 
-	if(argc != 3) {
-		if((argc == 4) && (strcmp(argv[3], "labels") == 0))
-			print_labels = 1;
-		else
-			help();
+	outname = NULL;
+	while((opt = getopt(argc, argv, "ho:l")) != -1) {
+		switch(opt) {
+			case 'h':
+				help();
+				exit(EXIT_SUCCESS);
+				break;
+			case 'o':
+				free(outname);
+				outname = stralloc(optarg);
+				break;
+			case 'l':
+				print_labels = 1;
+				break;
+			default:
+				fprintf(stderr, "Invalid option passed. Use -h for help.\n");
+				exit(EXIT_FAILURE);
+				break;
+		}
 	}
 	
-	m = llhdl_parse_file(argv[1]);
-	fd = fopen(argv[2], "w");
+	if((argc - optind) != 1) {
+		fprintf(stderr, "llhdl-dot: missing input file. Use -h for help.\n");
+		exit(EXIT_FAILURE);
+	}
+	inname = argv[optind];
+	if(outname == NULL)
+		outname = mk_outname(inname);
+	
+	m = llhdl_parse_file(inname);
+	fd = fopen(outname, "w");
 	if(fd == NULL) {
 		perror("Unable to write output file");
 		exit(EXIT_FAILURE);
@@ -181,6 +226,7 @@ int main(int argc, char *argv[])
 	}
 	
 	llhdl_free_module(m);
+	free(outname);
 
 	return 0;
 }
