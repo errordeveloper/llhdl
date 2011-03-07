@@ -15,8 +15,8 @@ struct flow_settings flow_settings = {
 
 	.io_buffers = 1,
 	.dsp = 1,
-	.carry_chains = 1,
-	.srl16 = 1,
+	.carry_arith = 1,
+	.srl = 1,
 	.dedicated_muxes = 1,
 	.prune = 1,
 	
@@ -48,14 +48,14 @@ struct option_desc options[] = {
 		.sw = &flow_settings.dsp
 	},
 	{
-		.handle = "carry-chains",
-		.description = "Use carry chains",
-		.sw = &flow_settings.carry_chains
+		.handle = "carry-arith",
+		.description = "Use carry chain arithmetic",
+		.sw = &flow_settings.carry_arith
 	},
 	{
-		.handle = "srl16",
+		.handle = "srl",
 		.description = "Use the shift register mode of LUTs",
-		.sw = &flow_settings.srl16
+		.sw = &flow_settings.srl
 	},
 	{
 		.handle = "dedicated-muxes",

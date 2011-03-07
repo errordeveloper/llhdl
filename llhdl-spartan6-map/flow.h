@@ -15,8 +15,8 @@ struct flow_settings {
 
 	int io_buffers;
 	int dsp;
-	int carry_chains;
-	int srl16;
+	int carry_arith;
+	int srl;
 	int dedicated_muxes;
 	int prune;
 	

@@ -15,10 +15,9 @@
 #include <mapkit/mapkit.h>
 
 #include "flow.h"
-#include "srl16.h"
+#include "srl.h"
 
-void srl16_register(struct flow_sc *sc)
+void srl_register(struct flow_sc *sc)
 {
 	/* TODO */
 }
-

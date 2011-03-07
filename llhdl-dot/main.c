@@ -7,7 +7,7 @@
 #include <util.h>
 
 #include <llhdl/structure.h>
-#include <llhdl/exchange.h>
+#include <llhdl/interchange.h>
 #include <llhdl/tools.h>
 
 #include <banner/banner.h>

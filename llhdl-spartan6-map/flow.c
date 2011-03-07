@@ -15,7 +15,7 @@
 #include <netlist/dot.h>
 
 #include <llhdl/structure.h>
-#include <llhdl/exchange.h>
+#include <llhdl/interchange.h>
 #include <llhdl/tools.h>
 
 #include <mapkit/mapkit.h>
@@ -25,7 +25,7 @@
 #include "commonstruct.h"
 #include "dsp.h"
 #include "carryarith.h"
-#include "srl16.h"
+#include "srl.h"
 #include "lut.h"
 #include "fd.h"
 #include "flow.h"
@@ -189,10 +189,10 @@ void run_flow(struct flow_settings *settings)
 	/* Build the meta-mapper process stack */
 	if(settings->dsp)
 		dsp_register(&sc);
-	if(settings->carry_chains)
+	if(settings->carry_arith)
 		carryarith_register(&sc);
-	if(settings->srl16)
-		srl16_register(&sc);
+	if(settings->srl)
+		srl_register(&sc);
 	bd_register(sc.mapkit);
 	lut_register(&sc);
 	fd_register(&sc);

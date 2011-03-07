@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #include <llhdl/structure.h>
-#include <llhdl/exchange.h>
+#include <llhdl/interchange.h>
 
 int main(int argc, char *argv[])
 {

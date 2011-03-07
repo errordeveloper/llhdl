@@ -6,7 +6,7 @@
 #include <banner/banner.h>
 
 #include <llhdl/structure.h>
-#include <llhdl/exchange.h>
+#include <llhdl/interchange.h>
 
 #include "verilog.h"
 #include "transform.h"
