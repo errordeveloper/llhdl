@@ -117,7 +117,7 @@ static void list_options()
 
 static void help()
 {
-	banner("\nXilinx Spartan-6 mapper");
+	banner("Xilinx Spartan-6 mapper");
 	printf("Usage: llhdl-spartan6-map [parameters] <input.lhd>\n\n");
 	printf("The input design in LLHDL interchange format (input.lhd) is mandatory.\n");
 	printf("Parameters are:\n");
@@ -190,15 +190,19 @@ int main(int argc, char *argv[])
 				}
 				break;
 			case 'o':
+				free(flow_settings.output_anl);
 				flow_settings.output_anl = stralloc(optarg);
 				break;
 			case 'e':
+				free(flow_settings.output_edf);
 				flow_settings.output_edf = stralloc(optarg);
 				break;
 			case 'd':
+				free(flow_settings.output_dot);
 				flow_settings.output_dot = stralloc(optarg);
 				break;
 			case 's':
+				free(flow_settings.output_sym);
 				flow_settings.output_sym = stralloc(optarg);
 				break;
 			default:
@@ -223,4 +227,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
