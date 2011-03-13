@@ -15,9 +15,9 @@ static void write_ports(struct netlist_manager *m, FILE *fd)
 	while(inst != NULL) {
 		if((inst->p->type == NETLIST_PRIMITIVE_PORT_OUT) || (inst->p->type == NETLIST_PRIMITIVE_PORT_IN)) {
 			if(inst->p->type == NETLIST_PRIMITIVE_PORT_OUT)
-				fprintf(fd, "out I%08x", inst->uid);
+				fprintf(fd, "output I%08x", inst->uid);
 			else
-				fprintf(fd, "in I%08x", inst->uid);
+				fprintf(fd, "input I%08x", inst->uid);
 			for(i=0;i<inst->p->attribute_count;i++)
 				fprintf(fd, " attr %s %s",
 					inst->p->attribute_names[i],
