@@ -19,7 +19,7 @@ static void write_ports(struct netlist_manager *m, FILE *fd)
 			else
 				fprintf(fd, "in I%08x\n", inst->uid);
 			for(i=0;i<inst->p->attribute_count;i++)
-				fprintf(fd, "\t%s \"%s\"\n",
+				fprintf(fd, "\tattr %s %s\n",
 					inst->p->attribute_names[i],
 					inst->attributes[i]);
 		}
@@ -37,7 +37,7 @@ static void write_instances(struct netlist_manager *m, FILE *fd)
 		if(inst->p->type == NETLIST_PRIMITIVE_INTERNAL) {
 			fprintf(fd, "inst I%08x %s\n", inst->uid, inst->p->name);
 			for(i=0;i<inst->p->attribute_count;i++)
-				fprintf(fd, "\t%s \"%s\"\n",
+				fprintf(fd, "\tattr %s %s\n",
 					inst->p->attribute_names[i],
 					inst->attributes[i]);
 		}

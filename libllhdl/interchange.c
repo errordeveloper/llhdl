@@ -556,5 +556,8 @@ void llhdl_write_file(struct llhdl_module *m, const char *filename)
 	}
 	llhdl_write_fd(m, fd);
 	r = fclose(fd);
-	assert(r == 0);
+	if(r != 0) {
+		perror("llhdl_write_file");
+		exit(EXIT_FAILURE);
+	}
 }
