@@ -15,13 +15,14 @@ static void write_ports(struct netlist_manager *m, FILE *fd)
 	while(inst != NULL) {
 		if((inst->p->type == NETLIST_PRIMITIVE_PORT_OUT) || (inst->p->type == NETLIST_PRIMITIVE_PORT_IN)) {
 			if(inst->p->type == NETLIST_PRIMITIVE_PORT_OUT)
-				fprintf(fd, "out I%08x\n", inst->uid);
+				fprintf(fd, "out I%08x", inst->uid);
 			else
-				fprintf(fd, "in I%08x\n", inst->uid);
+				fprintf(fd, "in I%08x", inst->uid);
 			for(i=0;i<inst->p->attribute_count;i++)
-				fprintf(fd, "\tattr %s %s\n",
+				fprintf(fd, " attr %s %s",
 					inst->p->attribute_names[i],
 					inst->attributes[i]);
+			fprintf(fd, "\n");
 		}
 		inst = inst->next;
 	}
@@ -35,11 +36,12 @@ static void write_instances(struct netlist_manager *m, FILE *fd)
 	inst = m->ihead;
 	while(inst != NULL) {
 		if(inst->p->type == NETLIST_PRIMITIVE_INTERNAL) {
-			fprintf(fd, "inst I%08x %s\n", inst->uid, inst->p->name);
+			fprintf(fd, "inst I%08x %s", inst->uid, inst->p->name);
 			for(i=0;i<inst->p->attribute_count;i++)
-				fprintf(fd, "\tattr %s %s\n",
+				fprintf(fd, " attr %s %s",
 					inst->p->attribute_names[i],
 					inst->attributes[i]);
+			fprintf(fd, "\n");
 		}
 		inst = inst->next;
 	}
@@ -63,19 +65,20 @@ static void write_nets_at_instance_outpin(struct netlist_manager *m, FILE *fd, s
 	struct netlist_net *net;
 	struct netlist_branch *b;
 	
-	fprintf(fd, "net I%08x %s\n", inst->uid, inst->p->output_names[pin]);
+	fprintf(fd, "net I%08x %s", inst->uid, inst->p->output_names[pin]);
 	net = m->nhead;
 	while(net != NULL) {
 		if(net_driven_by(net, inst, pin)) {
 			b = net->head;
 			while(b != NULL) {
 				if(!b->output)
-					fprintf(fd, "\tI%08x %s\n", b->inst->uid, b->inst->p->input_names[b->pin_index]);
+					fprintf(fd, " end I%08x %s", b->inst->uid, b->inst->p->input_names[b->pin_index]);
 				b = b->next;
 			}
 		}
 		net = net->next;
 	}
+	fprintf(fd, "\n");
 }
 
 static void write_nets(struct netlist_manager *m, FILE *fd)
