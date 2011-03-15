@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <netlist/net.h>
 #include <netlist/manager.h>
@@ -18,10 +19,12 @@ static void write_ports(struct netlist_manager *m, FILE *fd)
 				fprintf(fd, "output I%08x", inst->uid);
 			else
 				fprintf(fd, "input I%08x", inst->uid);
-			for(i=0;i<inst->p->attribute_count;i++)
-				fprintf(fd, " attr %s %s",
-					inst->p->attribute_names[i],
-					inst->attributes[i]);
+			for(i=0;i<inst->p->attribute_count;i++) {
+				if(strcmp(inst->attributes[i], inst->p->default_attributes) != 0)
+					fprintf(fd, " attr %s \"%s\"",
+						inst->p->attribute_names[i],
+						inst->attributes[i]);
+			}
 			fprintf(fd, "\n");
 		}
 		inst = inst->next;
@@ -37,10 +40,12 @@ static void write_instances(struct netlist_manager *m, FILE *fd)
 	while(inst != NULL) {
 		if(inst->p->type == NETLIST_PRIMITIVE_INTERNAL) {
 			fprintf(fd, "inst I%08x %s", inst->uid, inst->p->name);
-			for(i=0;i<inst->p->attribute_count;i++)
-				fprintf(fd, " attr %s %s",
-					inst->p->attribute_names[i],
-					inst->attributes[i]);
+			for(i=0;i<inst->p->attribute_count;i++) {
+				if(strcmp(inst->attributes[i], inst->p->default_attributes) != 0)
+					fprintf(fd, " attr %s \"%s\"",
+						inst->p->attribute_names[i],
+						inst->attributes[i]);
+			}
 			fprintf(fd, "\n");
 		}
 		inst = inst->next;
